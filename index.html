@@ -2373,11 +2373,7 @@ function abaGeral(d){
      fmtV: v => fmt(Math.round(v)), sufixo:' m²',
      aria:'área por risco da área e estado do forro'});
   $('#leg-matriz').innerHTML = usados.map(g =>
-    '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('') +
-    '<span class="it prosa">Cada barra é uma classificação de risco da área, repartida pelo estado do ' +
-    'forro. A fila da frente é o vermelho nas faixas de risco crítico: ' +
-    (foco.length ? plural(foco.length, 'ambiente', 'ambientes') + ' e ' + areaTxt(areaDe(foco))
-                 : 'nenhum ambiente hoje') + '.</span>';
+    '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('');
 
   /* 3. ambientes por unidade */
   const porUni = Object.entries(agrupa(d, 'sigla')).sort((a,b) => b[1].ruim - a[1].ruim || b[1].t - a[1].t);
