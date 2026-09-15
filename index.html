@@ -75,6 +75,7 @@ header.topo{background:#fff;padding:18px 24px 0}
 #tab-pav tbody tr.pav-linha{cursor:pointer}
 #tab-pav tbody tr.pav-sel td{background:var(--fundo-critico)!important;font-weight:600}
 #tab-pav tbody tr.pav-sel td:first-child{box-shadow:inset 3px 0 0 var(--navy)}
+#tab-pav .sub-cel{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35;font-weight:400}
 
 /* troca de aba com um respiro — some para quem prefere menos movimento */
 section[data-painel]:not([hidden]){animation:entra .18s ease-out}
@@ -2109,25 +2110,55 @@ const SEM_SETOR = '— sem pavimento informado';
 const ORDINAIS = {primeiro:1, segundo:2, terceiro:3, quarto:4, quinto:5, sexto:6, setimo:7,
                   oitavo:8, nono:9, decimo:10};
 let SETOR_ROTULO = {}, PAV_ROTULO = {};
-function nivelPavimento(nome){
-  const t = norm(nome || '');
-  if(!t || nome === SEM_SETOR) return 9000;
+/* A coluna PAVIMENTO/PAVILHÃO mistura duas coisas: o andar e a ala do prédio
+   ("TÉRREO - BLOCO A", "LABORATÓRIO - 1º PAV"), e cada aba escreve o andar do seu jeito
+   ("1 ANDAR", "1º Pav", "1 PAVIMENTO"). Aqui o texto é partido em nível e ala para que o
+   térreo seja um só. O texto original nunca é alterado: continua na tabela da planilha,
+   aparece embaixo do nome do pavimento e é listado ao abrir a lista de ambientes. */
+const SEM_ALA = 'sem bloco indicado';
+function nivelToken(txt){
+  const t = norm(txt || '');
+  if(!t) return null;
   if(/\bsubsolo|\bsubterran/.test(t)){
-    const n = (t.match(/(\d+)\s*[ºo°]?\s*(?:sub|$)/) || t.match(/subsolo\D*(\d+)/) || [])[1];
-    return -100 + (n ? -Number(n) : -1);
+    const n = (t.match(/subsolo\D*(\d+)/) || t.match(/(\d+)\s*[ºo°]?\s*sub/) || [])[1];
+    return {n: -100 - (n ? Number(n) : 1), rot: n ? n + 'º subsolo' : 'Subsolo'};
   }
-  if(/\bterreo\b/.test(t)) return 0;
-  if(/\bmezanino\b/.test(t)) return 0.5;
-  const nu = t.match(/(?:^|\D)(\d{1,2})\s*[ºo°]?\s*(?:pav|and)/);
-  if(nu) return Number(nu[1]);
-  const so = t.match(/^\s*(\d{1,2})\s*[ºo°]?\s*$/);
-  if(so) return Number(so[1]);
-  for(const p in ORDINAIS) if(new RegExp('\\b' + p + '\\b').test(t)) return ORDINAIS[p];
-  if(/\bcobert|\blaje\b|\btelhad|\bteto\b/.test(t)) return 100;
-  return 500;
+  if(/semi\s*enterrad|semienterrad/.test(t)) return {n:-50, rot:'Semi enterrado'};
+  if(/\bterreo\b/.test(t)) return {n:0, rot:'Térreo'};
+  if(/\bmezanino\b/.test(t)) return {n:0.5, rot:'Mezanino'};
+  if(/\bcobert|\blaje\b|\btelhad|\bteto\b/.test(t)) return {n:100, rot:'Cobertura'};
+  const nu = t.match(/(?:^|\D)(\d{1,2})\s*[ºo°]?\s*(?:pav|and)/) || t.match(/^\s*(\d{1,2})\s*[ºo°]?\s*$/);
+  if(nu) return {n:Number(nu[1]), rot:Number(nu[1]) + 'º pavimento'};
+  for(const p in ORDINAIS) if(new RegExp('\\b' + p + '\\b').test(t))
+    return {n:ORDINAIS[p], rot:ORDINAIS[p] + 'º pavimento'};
+  return null;
 }
-const ordenarPavimentos = pares => pares.slice().sort((a,b) =>
-  nivelPavimento(a[0]) - nivelPavimento(b[0]) || a[0].localeCompare(b[0],'pt-BR'));
+const capInicial = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+function rotuloAla(txt){
+  const s = String(txt || '').trim().replace(/\s+/g, ' ');
+  const m = s.match(/^bloco\s+(.+)$/i);
+  if(m) return m[1].trim().length <= 2 ? 'Bloco ' + m[1].trim().toUpperCase() : capInicial(m[1].trim());
+  return capInicial(s);
+}
+function partesPav(bruto){
+  const s = String(bruto || '').trim().replace(/\s+/g, ' ');
+  if(!s) return {nivel:9000, rot:SEM_SETOR, ala:''};
+  const pedacos = s.split(/\s*[-–—\/|]\s*/).map(x => x.trim()).filter(Boolean);
+  let achou = null; const resto = [];
+  pedacos.forEach(p => { const t = achou ? null : nivelToken(p); if(t) achou = t; else resto.push(p); });
+  if(!achou){
+    const t = nivelToken(s);
+    /* nome que não é andar ("MANUTENÇÃO") fica como está, só sem o caixa-alta gritado */
+    return t ? {nivel:t.n, rot:t.rot, ala:''}
+             : {nivel:500, rot:(s === s.toUpperCase() && s.length > 3 ? capInicial(s) : s), ala:''};
+  }
+  return {nivel:achou.n, rot:achou.rot, ala: resto.length ? resto.map(rotuloAla).join(' · ') : ''};
+}
+let PAV_PARTES = {};
+const partesDe = r => PAV_PARTES[norm(r.pav || '')] || {nivel:9000, rot:SEM_SETOR, ala:''};
+const nivelDe = r => partesDe(r).rot;
+const alaDe = r => partesDe(r).ala || SEM_ALA;
+const grafiaPav = r => (String(r.pav || '').trim().replace(/\s+/g, ' ')) || '(em branco)';
 /* mesma grafia escrita de jeitos diferentes ("Térreo" e "TÉRREO") vira uma só */
 function canonizar(base, campo){
   const cont = {};
@@ -2144,6 +2175,8 @@ function canonizar(base, campo){
 function mapearSetores(){
   PAV_ROTULO = canonizar(LINHAS, 'pav');
   SETOR_ROTULO = canonizar(LINHAS, 'setor');
+  PAV_PARTES = {};
+  LINHAS.forEach(r => { const k = norm(r.pav || ''); if(!(k in PAV_PARTES)) PAV_PARTES[k] = partesPav(r.pav); });
 }
 const pavDe = r => { const k = norm(r.pav || ''); return k ? (PAV_ROTULO[k] || r.pav.trim()) : SEM_SETOR; };
 const setorDe = r => { const k = norm(r.setor || ''); return k ? (SETOR_ROTULO[k] || r.setor.trim()) : '— sem setor'; };
@@ -2471,10 +2504,29 @@ function abaPavimentos(d){
   sel.value = PAV_UNI;
 
   const daUni = d.filter(r => r.sigla === PAV_UNI);
-  const m = agrupa(daUni, pavDe);
+  /* o andar é a chave; bloco/ala e as grafias originais viram detalhe */
+  const nivNum = {}, grafias = {}, alasPorNivel = {};
+  daUni.forEach(r => {
+    const p = partesDe(r), rot = p.rot;
+    nivNum[rot] = p.nivel;
+    (grafias[rot] = grafias[rot] || new Set()).add(grafiaPav(r));
+    const a = alasPorNivel[rot] = alasPorNivel[rot] || {};
+    const ala = p.ala || SEM_ALA; a[ala] = (a[ala] || 0) + 1;
+  });
+  const nvl = k => (k in nivNum ? nivNum[k] : 9000);
+  const listaGrafias = k => [...(grafias[k] || [])].sort((a,b) => a.localeCompare(b,'pt-BR'));
+  const detalheAlas = k => {
+    const a = alasPorNivel[k] || {};
+    const ch = Object.keys(a).filter(x => x !== SEM_ALA);
+    if(!ch.length) return '';
+    ch.sort((x,y) => a[y] - a[x] || x.localeCompare(y,'pt-BR'));
+    if(a[SEM_ALA]) ch.push(SEM_ALA);
+    return ch.map(x => (x === SEM_ALA ? 'sem bloco' : x) + ' ' + fmt(a[x])).join(' · ');
+  };
+  const m = agrupa(daUni, nivelDe);
   let linhas = Object.entries(m).map(([k,o]) => Object.assign({pav:k}, o));
   linhas.sort((a,b) => {
-    if(ordemPav.col === 'pav') return (nivelPavimento(a.pav) - nivelPavimento(b.pav) ||
+    if(ordemPav.col === 'pav') return (nvl(a.pav) - nvl(b.pav) ||
       a.pav.localeCompare(b.pav,'pt-BR')) * ordemPav.dir;
     if(ordemPav.col === 'taxa') return ((a.ruim/a.t) - (b.ruim/b.t)) * ordemPav.dir;
     return ((a[ordemPav.col] || 0) - (b[ordemPav.col] || 0)) * ordemPav.dir || b.t - a.t;
@@ -2489,20 +2541,39 @@ function abaPavimentos(d){
   }
   $('#pav-wrap').hidden = false;
   const nRuim = daUni.filter(r => r.ruim).length;
+  const totAla = agrupa(daUni, alaDe);
+  const chavesAla = Object.keys(totAla).filter(k => k !== SEM_ALA)
+    .sort((a,b) => totAla[b].t - totAla[a].t || a.localeCompare(b,'pt-BR'));
+  const temAla = chavesAla.length > 0;
   $('#sub-pav').textContent = PAV_UNI + ' · ' + nomeCurto(nomeUnidade(PAV_UNI)) + ' — ' +
     plural(daUni.length, 'ambiente', 'ambientes') + ' em ' +
     plural(linhas.length, 'pavimento', 'pavimentos') +
+    (temAla ? ' e ' + plural(chavesAla.length, 'bloco', 'blocos') : '') +
     (nRuim ? ' · ' + fmt(nRuim) + ' com forro ruim' : '') + ' · clique num pavimento para ver os ambientes';
 
   const ordemPredio = linhas.slice().sort((a,b) =>
-    nivelPavimento(a.pav) - nivelPavimento(b.pav) || a.pav.localeCompare(b.pav,'pt-BR'));
-  $('#pav-graf').innerHTML = '<div class="plot" id="pav-plot"></div>';
+    nvl(a.pav) - nvl(b.pav) || a.pav.localeCompare(b.pav,'pt-BR'));
+  $('#pav-graf').innerHTML = temAla
+    ? '<div class="duo"><div class="meia"><div class="meia-t">Por pavimento</div>' +
+      '<div class="plot" id="pav-plot"></div></div><div class="meia"><div class="meia-t">Por bloco / ala</div>' +
+      '<div class="plot" id="pav-plot-ala"></div></div></div>'
+    : '<div class="plot" id="pav-plot"></div>';
   barrasH($('#pav-plot'), ordemPredio.map(o => ({
     rot:o.pav, v:o.t, vtxt:fmt(o.t), cor:'var(--c-prazo)', tip:o.pav + ' — ambientes levantados',
     v2:o.ruim, v2txt:fmt(o.ruim), cor2:'var(--c-atraso)', tip2:o.pav + ' — forro em estado ruim',
     chave:o.pav
   })), {alvo: Math.max(150, Math.min(430, ordemPredio.length*32 + 20)), altMax:26,
         aria:'ambientes por pavimento', clique:true});
+  if(temAla){
+    const ordAla = chavesAla.concat(totAla[SEM_ALA] ? [SEM_ALA] : []);
+    barrasH($('#pav-plot-ala'), ordAla.map(k => ({
+      rot: k === SEM_ALA ? 'Sem bloco' : k, v:totAla[k].t, vtxt:fmt(totAla[k].t), cor:'var(--c-prazo)',
+      tip: (k === SEM_ALA ? 'Linhas sem bloco no texto do pavimento' : k) + ' — ambientes levantados',
+      v2:totAla[k].ruim, v2txt:fmt(totAla[k].ruim), cor2:'var(--c-atraso)',
+      tip2: (k === SEM_ALA ? 'Sem bloco' : k) + ' — forro em estado ruim'
+    })), {alvo: Math.max(150, Math.min(430, ordAla.length*32 + 20)), altMax:26,
+          aria:'ambientes por bloco ou ala'});
+  }
   $('#pav-leg').innerHTML = '<span class="it"><i class="sw" style="background:var(--c-prazo)"></i>Ambientes</span>' +
     '<span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Com forro ruim</span>' +
     '<span class="it prosa">Na ordem do prédio, do subsolo para a cobertura</span>';
@@ -2514,7 +2585,9 @@ function abaPavimentos(d){
     bom:a.bom+o.bom, crit:a.crit+o.crit, exec:a.exec+o.exec}), {t:0,area:0,ruim:0,reg:0,bom:0,crit:0,exec:0});
   document.querySelector('#tab-pav tbody').innerHTML = linhas.map(o =>
     '<tr class="pav-linha' + (o.pav === PAV_SETOR ? ' pav-sel' : '') + '" data-setor="' + esc(o.pav) + '">' +
-    '<td class="cel-uni"><span title="' + esc(o.pav) + '">' + esc(o.pav) + '</span></td>' +
+    '<td class="cel-uni"><span title="Na planilha: ' + esc(listaGrafias(o.pav).join(' · ')) + '">' +
+      esc(o.pav) + '</span>' +
+      (detalheAlas(o.pav) ? '<div class="sub-cel">' + esc(detalheAlas(o.pav)) + '</div>' : '') + '</td>' +
     '<td class="num"><b>' + fmt(o.t) + '</b></td><td class="num">' + fmt(Math.round(o.area)) + '</td>' +
     cl(o.ruim,'var(--t-atraso)') + cl(o.reg,'var(--t-critico)') + cl(o.bom,'var(--t-conc)') +
     cl(o.crit) + cl(o.exec,'var(--t-conc)') + '<td>' + barraComp(o) + '</td></tr>').join('') +
@@ -2528,12 +2601,14 @@ function abaPavimentos(d){
   if(PAV_SETOR && !linhas.some(o => o.pav === PAV_SETOR)) PAV_SETOR = null;
   const card = $('#pav-card-lista');
   if(!PAV_SETOR){ card.hidden = true; return; }
-  const doPav = daUni.filter(r => pavDe(r) === PAV_SETOR).sort((a,b) => a.linha - b.linha);
+  const doPav = daUni.filter(r => nivelDe(r) === PAV_SETOR).sort((a,b) => a.linha - b.linha);
+  const gr = listaGrafias(PAV_SETOR);
   card.hidden = false;
   $('#pav-t-lista').textContent = PAV_SETOR;
   $('#pav-sub-lista').textContent = PAV_UNI + ' · ' + plural(doPav.length, 'ambiente', 'ambientes') +
     ' · ' + areaTxt(areaDe(doPav)) + ', como estão na planilha';
-  $('#pav-corpo').innerHTML = notaPlanilha('São as linhas da aba ' + PAV_UNI + ' deste pavimento, sem nenhuma alteração.') +
+  $('#pav-corpo').innerHTML = notaPlanilha('São as linhas da aba ' + PAV_UNI + ' deste pavimento, sem nenhuma alteração.' +
+      (gr.length > 1 ? ' Na coluna PAVIMENTO/PAVILHÃO elas aparecem como ' + gr.join(', ') + '.' : '')) +
     '<div class="tabela-wrap"><table>' + colgroupPlanilha([68, 150]) +
     '<thead><tr class="orig-cab"><th class="num col-fixa">Linha</th><th class="cen">Estado</th>' +
     cabecalhoPlanilha() + '</tr></thead><tbody>' +
@@ -2965,7 +3040,7 @@ document.addEventListener('click', e => {
 });
 liga('#pav-csv','click', () => {
   if(!PAV_SETOR) return;
-  const sd = filtradas().filter(r => r.sigla === PAV_UNI && pavDe(r) === PAV_SETOR).sort((a,b) => a.linha - b.linha);
+  const sd = filtradas().filter(r => r.sigla === PAV_UNI && nivelDe(r) === PAV_SETOR).sort((a,b) => a.linha - b.linha);
   if(!sd.length) return;
   baixarCSV('forro-' + PAV_UNI.toLowerCase() + '-' + norm(PAV_SETOR).replace(/[^a-z0-9]+/g,'-'),
     ['Linha na planilha','Estado do forro','Risco da área']
