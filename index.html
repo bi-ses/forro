@@ -252,6 +252,7 @@ g.linha:hover .faixa-hover{fill:rgba(15,39,89,.045)}
 
 .leg{display:flex;flex-wrap:wrap;gap:8px 20px;padding:0 18px 16px}
 .leg .it{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.leg .it.prosa{display:block;gap:0;line-height:1.55;max-width:68ch}
 .leg .sw{width:11px;height:11px;border-radius:3px;flex:0 0 11px}
 .leg b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .leg .pc{color:var(--muted)}
@@ -419,6 +420,24 @@ footer{max-width:1500px;margin:0 auto;padding:2px 24px 28px;color:var(--muted);f
 code{background:#eceff3;padding:1px 5px;border-radius:4px;font-size:12px;
   font-family:ui-monospace,Menlo,Consolas,monospace}
 
+@media print{
+  .barra,.filtros,.mask,#tip{display:none!important}
+  body{background:#fff}
+  main{padding:12px 0 0}
+  .card{break-inside:avoid;box-shadow:none;border-radius:8px}
+  .tabela-wrap{max-height:none;overflow:visible} thead th{position:static}
+  thead th{background:#fff!important;color:var(--navy)!important;border-bottom:2px solid var(--navy)}
+  .card:has(.tabela-wrap){break-inside:auto}
+  #resumo-impressao{display:block!important}
+  table{font-size:9.5px} tbody td{padding:5px 6px} thead th{padding:6px;font-size:8.5px;letter-spacing:.03em}
+  .cel-desc{min-width:0;max-width:none} .cel-uni{min-width:0} td.num{min-width:0}
+  .sg{width:auto;min-width:46px;padding:1px 4px;margin-right:0}
+  .kpi::after,.badge,.mark,.logo,.logo-seinfra,.faixa,.comp,.comp i,.sw,.sg{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  header.topo{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .g4,.g5,.g7,.g8{grid-column:span 6}
+}
+
 /* =========================================================================
    ACABAMENTO — este painel usa a mesma identidade (logos, faixa, paleta) do painel de
    entregas, com um tratamento mais editorial: cabeçalho em faixa escura, números com
@@ -448,19 +467,11 @@ html[data-theme="dark"] header.topo{background:linear-gradient(135deg,#0a1120 0%
 .kpis{gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 .plot{padding:14px 18px 16px}
 
-/* matriz de decisão: risco da área × estado do forro */
-.matriz-risco{width:100%;border-collapse:separate;border-spacing:6px;font-size:12.5px}
-.matriz-risco th{background:none;color:var(--muted);font-size:10px;letter-spacing:.1em;
-  text-transform:uppercase;font-weight:700;padding:0 0 2px;position:static;border:0;text-align:center}
-.matriz-risco th.lado{text-align:right;padding-right:10px;width:130px}
-.matriz-risco td{border-radius:10px;padding:11px 8px;text-align:center;line-height:1.25;
-  border:1px solid var(--grid);background:var(--surface-2)}
-.matriz-risco td.q{font-variant-numeric:tabular-nums}
-.matriz-risco td b{display:block;font-size:21px;font-weight:700;letter-spacing:-.02em}
-.matriz-risco td span{font-size:10.5px;color:var(--ink-2)}
-.matriz-risco td.foco{border-width:2px}
-.matriz-risco td.vazio{opacity:.45}
-.matriz-risco .lado b{font-size:12.5px;font-weight:700;color:var(--navy);display:inline}
+.duo .meia{flex:1 1 300px;min-width:0;display:flex;flex-direction:column}
+.duo .meia + .meia{border-left:1px solid var(--grid)}
+.duo .meia .plot{flex:0 0 auto}
+.meia-t{font-size:11px;font-weight:700;color:var(--ink-2);padding:13px 18px 0;letter-spacing:.04em}
+@media(max-width:900px){.duo .meia + .meia{border-left:0;border-top:1px solid var(--grid)}}
 
 /* ---------- modo escuro ---------- */
 html[data-theme="dark"]{
@@ -597,7 +608,7 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
   <div class="faixa"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
-<nav class="barra">
+  <nav class="barra">
   <div class="barra-in">
     <div class="abas" role="tablist">
       <button class="aba" role="tab" id="aba-geral" aria-controls="painel-geral" data-aba="geral" aria-selected="true" tabindex="0">Visão geral</button>
@@ -628,7 +639,6 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
   </div>
 </nav>
 <div id="erro-barra" role="alert" aria-live="assertive"><div class="in"><b>⚠ </b><span id="erro-txt"></span></div></div>
-
 <main>
   <div id="resumo-impressao" style="display:none;font-size:12px;color:var(--navy);padding:0 0 10px"></div>
   <div id="vazio" class="card vazio">
@@ -661,22 +671,26 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
             <div class="pizza-leg" id="leg-estado"></div></div>
         </div>
         <div class="card g7">
-          <div class="card-h"><div class="card-t">Onde intervir primeiro</div>
-            <div class="card-s" id="sub-matriz">—</div></div>
-          <div style="padding:6px 16px 8px"><table class="matriz-risco" id="tab-matriz"><tbody></tbody></table></div>
-          <div class="leg" id="leg-matriz"></div>
-        </div>
-        <div class="card g6">
           <div class="card-h"><div class="card-t">Ambientes por unidade</div>
             <div class="card-s" id="sub-uni-geral">—</div></div>
           <div class="plot" id="c-uni-geral"></div>
           <div class="leg"><span class="it"><i class="sw" style="background:var(--c-prazo)"></i>Ambientes levantados</span>
             <span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Dos quais com forro ruim</span></div>
         </div>
-        <div class="card g6">
-          <div class="card-h"><div class="card-t">Área por estado do forro</div>
-            <div class="card-s" id="sub-area">—</div></div>
-          <div class="plot" id="c-area"></div>
+        <div class="card g12">
+          <div class="card-h"><div class="card-t">Onde intervir primeiro</div>
+            <div class="card-s" id="sub-matriz">—</div></div>
+          <div class="duo">
+            <div class="meia">
+              <div class="meia-t">Por ambientes</div>
+              <div class="plot" id="c-matriz-n"></div>
+            </div>
+            <div class="meia">
+              <div class="meia-t">Por área (m²)</div>
+              <div class="plot" id="c-matriz-a"></div>
+            </div>
+          </div>
+          <div class="leg" id="leg-matriz"></div>
         </div>
         <div class="card g12">
           <div class="card-h"><div class="card-t">Status das intervenções</div>
@@ -735,7 +749,7 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
         <div class="card-h"><div class="card-t">Pareto dos planos de ação</div>
           <div class="card-s" id="sub-pareto">—</div></div>
         <div class="plot" id="c-pareto"></div>
-        <div class="leg"><span class="it">Barras: ambientes de cada plano</span>
+        <div class="leg"><span class="it prosa">Barras: ambientes de cada plano</span>
           <span class="it"><i class="sw" style="background:var(--navy)"></i>Percentual acumulado</span>
           <span class="it">Tracejado: corte de 80%</span></div>
       </div>
@@ -792,6 +806,7 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
     
       </div>
 </main>
+
 
 <footer>
   <span>Atividades de Troca de Forro · Levantamento de criticidade · Secretaria Executiva de Infraestrutura · Secretaria Estadual de Saúde de Pernambuco</span>
@@ -1072,6 +1087,7 @@ const COLS = {
 const ABA_APOIO = /nomes? dos hospitais|siglas?|apoio|auxiliar/;
 
 let CABECALHO_PLANILHA = [], LINHA_CABECALHO = 0, NOMES_UNIDADE = {}, SIGLAS_SEM_NOME = [];
+let ABAS_FORA_DO_PADRAO = [];
 function letraColuna(i){
   let n = i + 1, s = '';
   while(n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
@@ -1122,7 +1138,7 @@ const nomeUnidade = sg => NOMES_UNIDADE[sg] || NOMES_EXTRA[sg] || sg;
 function montarBase(abas){
   atualizarHoje();
   lerNomes(abas);
-  SIGLAS_SEM_NOME = [];
+  SIGLAS_SEM_NOME = []; ABAS_FORA_DO_PADRAO = [];
   CABECALHO_PLANILHA = []; LINHA_CABECALHO = 0;
   const base = [];
   const uteis = abas.filter(a => !ABA_APOIO.test(norm(a.nome)));
@@ -1145,6 +1161,19 @@ function montarBase(abas){
         .filter(c => c.rot);
       LINHA_CABECALHO = hi + 1;
     }
+    /* a coluna que aparece na tabela "como está na planilha" é procurada pelo rótulo dentro
+       da própria aba, e não pela posição da primeira: se uma aba tiver a ordem trocada ou
+       uma coluna a mais, a linha continua alinhada com o cabeçalho — e a diferença é
+       declarada na conferência em vez de passar despercebida. */
+    const cabAba = (grade[hi] || []).map((v,k) => ({rot:String(v ?? '').trim(), col:letraColuna(k), idx:k}))
+      .filter(c => c.rot);
+    const mesmoCab = cabAba.length === CABECALHO_PLANILHA.length &&
+      cabAba.every((c,k) => norm(c.rot) === norm(CABECALHO_PLANILHA[k].rot));
+    if(!mesmoCab) ABAS_FORA_DO_PADRAO.push({aba: aba.nome, cab: cabAba.map(c => c.rot)});
+    const posBruto = CABECALHO_PLANILHA.map((c,k) => {
+      const j = cabAba.findIndex(x => norm(x.rot) === norm(c.rot));
+      return j >= 0 ? cabAba[j].idx : (cabAba[k] ? cabAba[k].idx : -1);
+    });
     const pega = (l,k) => idx[k] >= 0 ? l[idx[k]] : null;
     const txt = v => String(v ?? '').trim();
     if(idx.area >= 0) detectarSeparador(grade.slice(hi + 1).map(l => (l || [])[idx.area]));
@@ -1169,7 +1198,7 @@ function montarBase(abas){
         iniRealRaw: txt(pega(l,'iniReal')), iniReal: parseData(pega(l,'iniReal')),
         fimRealRaw: txt(pega(l,'fimReal')), fimReal: parseData(pega(l,'fimReal')),
         linha: i + 1,
-        _bruto: CABECALHO_PLANILHA.map(c => valorBruto(l[c.idx]))
+        _bruto: posBruto.map(j => j >= 0 ? valorBruto(l[j]) : '')
       };
       r._brutoHtml = r._bruto.map((v,k) => celulaVerbatim(v, null, classeCol(k))).join('');
       classificar(r);
@@ -1938,7 +1967,10 @@ function pareto(el, itens, opt){
       '" height="' + Math.max(0,hh) + '" rx="3" fill="' + (it.cor || opt.cor || 'var(--c-prazo)') + '" data-t="' + esc(it.tip || it.rot) +
       '" data-v="' + esc((it.vtxt || fmt(it.v)) + ' · ' + fmt1(100*it.v/total) + '% do total · acumulado ' +
       fmt1(pctAcum) + '%') + '"><title>' + esc(it.rot + ': ' + (it.vtxt || fmt(it.v))) + '</title></rect>';
-    if(bw >= 22) s += '<text class="vlab" x="' + cx + '" y="' + (yy-6) + '" text-anchor="middle" style="font-size:10.5px">' +
+    /* o rótulo pode cair em cima da curva acumulada: o contorno na cor do cartão abre
+       espaço para ele sem empurrar o número para longe da barra */
+    if(bw >= 22) s += '<text class="vlab" x="' + cx + '" y="' + (yy-6) + '" text-anchor="middle" ' +
+      'style="font-size:10.5px;stroke:var(--surface);stroke-width:3;paint-order:stroke fill">' +
       esc(it.vtxt || fmt(it.v)) + '</text>';
     s += '<text class="tick" x="' + cx + '" y="' + (h-mb+16) + '" text-anchor="middle" style="font-size:10px">' +
       esc(encurtar(it.rot, bw + 8, F_TIC)) + '</text>';
@@ -2153,6 +2185,66 @@ function barraComp(o){
       '" title="' + g.nome + ': ' + fmt(o[g.k]) + ' (' + pc(o[g.k], t) + ')"></i>').join('') + '</div>';
 }
 
+/* Barras horizontais empilhadas: cada linha é uma categoria e os segmentos somam o total.
+   Serve para ler duas dimensões de uma vez — quanto tem em cada faixa e como esse total se
+   reparte — sem a leitura em grade, que obriga a comparar números soltos. */
+function barrasEmpilhadas(el, itens, segs, opt){
+  opt = opt || {};
+  const alvo = opt.alvo || 260;
+  if(!itens.length || !itens.some(i => i.total > 0)){
+    el.innerHTML = '<div class="sem" style="min-height:' + Math.max(60, alvo - 46) + 'px;display:flex;' +
+      'align-items:center;justify-content:center">' + esc(opt.vazio || 'Sem registros no recorte atual') + '</div>';
+    return;
+  }
+  const larg = Math.max(260, Math.floor(el.clientWidth) || 380);
+  const gap = 9, n = itens.length;
+  const alt = Math.max(16, Math.min(opt.altMax || 30, Math.floor((alvo - 14) / n) - gap));
+  const altura = Math.max(alvo, n * (alt + gap) - gap + 14);
+  const fmtV = opt.fmtV || fmt;
+  const larguraVal = Math.ceil(Math.max(...itens.map(i =>
+    larguraTexto(fmtV(i.total) + (opt.sufixo || ''), F_VAL)))) + 10;
+  const maxRot = Math.max(56, Math.min(larg * 0.42, larg - larguraVal - 70));
+  const larguraRot = Math.ceil(Math.min(maxRot, Math.max(...itens.map(i => larguraTexto(i.rot, F_ROT)))));
+  const x0 = larguraRot + 12, x1 = larg - larguraVal;
+  const max = Math.max(1, ...itens.map(i => i.total));
+  const esc0 = v => Math.max(0, (x1 - x0) * v / max);
+
+  const descricao = (opt.aria || 'barras empilhadas') + ': ' +
+    itens.map(i => i.rot + ' ' + fmtV(i.total) + ' (' + segs.map(g => g.nome + ' ' + fmtV(i[g.k] || 0)).join(', ') + ')').join('; ');
+  let s = '<svg width="' + larg + '" height="' + altura + '" viewBox="0 0 ' + larg + ' ' + altura +
+          '" role="img" aria-label="' + esc(descricao) + '">';
+  itens.forEach((it, k) => {
+    const y = 7 + k * (alt + gap);
+    const rot = encurtar(it.rot, larguraRot, F_ROT);
+    s += '<g class="linha">';
+    s += '<rect class="faixa-hover" x="0" y="' + (y-3) + '" width="' + larg + '" height="' + (alt+6) + '" rx="4"></rect>';
+    s += '<text class="clab" x="' + (x0-10) + '" y="' + (y + alt/2 + 4) + '" text-anchor="end">' + esc(rot) +
+         (rot === it.rot ? '' : '<title>' + esc(it.rot) + '</title>') + '</text>';
+    let x = x0;
+    segs.forEach((g,gi) => {
+      const v = it[g.k] || 0;
+      if(v <= 0) return;
+      const w = Math.max(2, esc0(v));
+      /* o primeiro e o último segmento arredondam só do lado de fora da barra */
+      const r = (gi === 0 || x === x0) ? 4 : 0;
+      s += '<rect class="mark" x="' + x + '" y="' + y + '" width="' + w + '" height="' + alt + '" rx="' + r +
+           '" fill="' + g.cor + '" data-t="' + esc(it.rot + ' · ' + g.nome) + '" data-v="' + esc(fmtV(v) +
+           (opt.sufixo || '') + ' · ' + pc(v, it.total) + ' da faixa') + '"><title>' +
+           esc(it.rot + ' · ' + g.nome + ': ' + fmtV(v)) + '</title></rect>';
+      if(w > larguraTexto(fmtV(v), F_SEG) + 14)
+        s += '<text class="slab" x="' + (x + w/2) + '" y="' + (y + alt/2 + 4) + '" text-anchor="middle" ' +
+             'style="fill:' + (g.txt || '#fff') + '">' + esc(fmtV(v)) + '</text>';
+      x += w;
+      if(x < x1) s += '<rect x="' + (x - 1.5) + '" y="' + y + '" width="1.5" height="' + alt + '" fill="var(--surface)"></rect>';
+    });
+    s += '<text class="vlab" x="' + Math.min(x + 8, larg - 2) + '" y="' + (y + alt/2 + 4) + '">' +
+         esc(fmtV(it.total) + (opt.sufixo || '')) + '</text>';
+    s += '</g>';
+  });
+  el.innerHTML = s + '</svg>';
+  ligarTip(el);
+}
+
 /* ------------------------------------------------------------- abas */
 let ABA_ANTES_DIAG = 'geral';
 const abaDeDiagnostico = a => a === 'erros';
@@ -2259,36 +2351,33 @@ function abaGeral(d){
     '<span class="it"><i class="sw" style="background:' + g.cor + '"></i><span>' + esc(g.nome) +
     '</span><b>' + fmt(g.v) + '</b><span class="pc">' + pc(g.v, total) + '</span></span>').join('');
 
-  /* 2. matriz risco da área × estado do forro — é aqui que se decide a ordem da obra */
-  const ordemRisco = RISCOS.map(x => x.nome).concat([SEM_RISCO])
-    .filter(k => d.some(r => r.risco === k));
-  const ordemEst = ESTADOS.map(e => e.nome).concat([SEM_ESTADO])
-    .filter(k => d.some(r => r.estado === k));
-  const cel = (ri, es) => d.filter(r => r.risco === ri && r.estado === es);
+  /* 2. risco da área × estado do forro — é aqui que se decide a ordem da obra */
+  const ordemRisco = RISCOS.map(x => x.nome).concat([SEM_RISCO]).filter(k => d.some(r => r.risco === k));
+  const segEstado = ESTADOS.map(e => ({k:e.nome, nome:'Forro ' + e.nome.toLowerCase(), cor:e.cor, txt:e.txt}))
+    .concat([{k:SEM_ESTADO, nome:SEM_ESTADO, cor:'var(--c-planejar)', txt:'var(--sobre-cinza)'}]);
+  const linhaRisco = (ri, valor) => {
+    const daFaixa = d.filter(r => r.risco === ri);
+    const o = {rot:ri, total: valor(daFaixa)};
+    segEstado.forEach(g => o[g.k] = valor(daFaixa.filter(r => r.estado === g.k)));
+    return o;
+  };
   $('#sub-matriz').textContent = foco.length
     ? 'Forro ruim em área crítica: ' + plural(foco.length, 'ambiente', 'ambientes') + ' e ' + areaTxt(areaDe(foco))
-    : 'Nenhum forro ruim em área crítica no recorte atual';
-  const tinta = (ri, es) => es === 'RUIM' ? corRisco(ri) : es === 'REGULAR' ? 'var(--c-critico)' : 'var(--c-concluido)';
-  document.querySelector('#tab-matriz tbody').innerHTML =
-    '<tr><th class="lado"></th>' + ordemEst.map(e =>
-      '<th><span style="color:' + corEstado(e) + '">●</span> ' + esc(e) + '</th>').join('') +
-      '<th>Total</th></tr>' +
-    ordemRisco.map(ri => {
-      const linha = d.filter(r => r.risco === ri);
-      return '<tr><th class="lado"><b>' + esc(ri) + '</b></th>' +
-        ordemEst.map(es => {
-          const c = cel(ri, es), critico = (ri === 'CRÍTICA' || ri === RISCO_AMBIGUO) && es === 'RUIM';
-          if(!c.length) return '<td class="q vazio"><b>0</b></td>';
-          return '<td class="q' + (critico ? ' foco' : '') + '" style="border-color:' + tinta(ri,es) +
-            (critico ? ';background:var(--fundo-critico)' : '') + '" title="' + esc(ri + ' · forro ' + es) + '">' +
-            '<b style="color:' + (critico ? 'var(--t-atraso)' : 'var(--ink)') + '">' + fmt(c.length) + '</b>' +
-            '<span>' + areaTxt(areaDe(c)) + '</span></td>';
-        }).join('') +
-        '<td class="q" style="background:transparent;border-style:dashed"><b>' + fmt(linha.length) + '</b>' +
-        '<span>' + areaTxt(areaDe(linha)) + '</span></td></tr>';
-    }).join('');
-  $('#leg-matriz').innerHTML = '<span class="it">Cada célula traz os ambientes e a área. ' +
-    'A célula destacada é a que combina <b>área crítica</b> com <b>forro ruim</b> — a fila da frente.</span>';
+    : (total ? 'Nenhum forro ruim em área crítica no recorte atual' : 'Nada no recorte atual');
+  const usados = segEstado.filter(g => d.some(r => r.estado === g.k));
+  barrasEmpilhadas($('#c-matriz-n'), ordemRisco.map(ri => linhaRisco(ri, l => l.length)), usados,
+    {alvo: Math.max(160, Math.min(300, ordemRisco.length*44 + 24)), altMax:30,
+     aria:'ambientes por risco da área e estado do forro'});
+  barrasEmpilhadas($('#c-matriz-a'), ordemRisco.map(ri => linhaRisco(ri, areaDe)), usados,
+    {alvo: Math.max(160, Math.min(300, ordemRisco.length*44 + 24)), altMax:30,
+     fmtV: v => fmt(Math.round(v)), sufixo:' m²',
+     aria:'área por risco da área e estado do forro'});
+  $('#leg-matriz').innerHTML = usados.map(g =>
+    '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('') +
+    '<span class="it prosa">Cada barra é uma classificação de risco da área, repartida pelo estado do ' +
+    'forro. A fila da frente é o vermelho nas faixas de risco crítico: ' +
+    (foco.length ? plural(foco.length, 'ambiente', 'ambientes') + ' e ' + areaTxt(areaDe(foco))
+                 : 'nenhum ambiente hoje') + '.</span>';
 
   /* 3. ambientes por unidade */
   const porUni = Object.entries(agrupa(d, 'sigla')).sort((a,b) => b[1].ruim - a[1].ruim || b[1].t - a[1].t);
@@ -2299,17 +2388,7 @@ function abaGeral(d){
     v2:o.ruim, v2txt:fmt(o.ruim), cor2:'var(--c-atraso)', tip2:nomeCurto(nomeUnidade(k)) + ' — forro em estado ruim'
   })), {alvo: Math.max(150, Math.min(320, porUni.length*40 + 20)), altMax:30, aria:'ambientes por unidade'});
 
-  /* 4. área por estado */
-  const areaEst = ESTADOS.map(e => ({rot:e.nome, v: areaDe(d.filter(r => r.estado === e.nome)), cor:e.cor}))
-    .filter(x => x.v > 0);
-  $('#sub-area').textContent = area
-    ? areaTxt(area) + ' levantados · ' + pc(areaDe(ruim), area) + ' em estado ruim'
-    : 'Nada no recorte atual';
-  barrasH($('#c-area'), areaEst.map(x => ({
-    rot:x.rot, v:Math.round(x.v), vtxt:areaTxt(x.v), cor:x.cor, tip:'Forro ' + x.rot + ' — área levantada'
-  })), {alvo:240, altMax:34, aria:'área por estado do forro'});
-
-  /* 5. status */
+  /* 4. status */
   const segSt = STATUS_LISTA.map(x => ({nome:x.nome, cor:x.cor, v:d.filter(r => r.status === x.nome).length}))
     .concat([{nome:SEM_STATUS, cor:'var(--c-planejar)', v:d.filter(r => r.status === SEM_STATUS).length}])
     .filter(g => g.v);
@@ -2375,7 +2454,7 @@ function abaUnidades(d){
       '<td class="num">' + fmt(soma.foco) + '</td><td class="num">' + fmt(soma.exec) + '</td>' +
       '<td>' + barraComp(soma) + '</td></tr>' : '');
   $('#leg-uni').innerHTML = legendaEstado() +
-    '<span class="it"><b>Ruim + crítica</b>: forro ruim em área de risco crítico</span>';
+    '<span class="it prosa"><b>Ruim + crítica</b>: forro ruim em área de risco crítico</span>';
 }
 
 /* ------------------------------------------------------------- pavimentos */
@@ -2430,7 +2509,7 @@ function abaPavimentos(d){
         aria:'ambientes por pavimento', clique:true});
   $('#pav-leg').innerHTML = '<span class="it"><i class="sw" style="background:var(--c-prazo)"></i>Ambientes</span>' +
     '<span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Com forro ruim</span>' +
-    '<span class="it">Na ordem do prédio, do subsolo para a cobertura</span>';
+    '<span class="it prosa">Na ordem do prédio, do subsolo para a cobertura</span>';
 
   document.querySelector('#tab-pav thead tr').innerHTML = cabecalho(COL_PAV, ordemPav);
   const cl = (v, cor) => '<td class="num' + (v ? '' : ' zero') + '"' +
@@ -2504,7 +2583,7 @@ function abaPlano(d){
     tip:PRIOR_ROT[x.p] + ' — ' + plural(x.lista.length, 'ambiente', 'ambientes') + ' · ' + areaTxt(areaDe(x.lista))
   })), {alvo:240, altMax:34, aria:'ambientes por prioridade'});
   const naPlanilha = d.filter(r => r.priorNaPlanilha != null).length;
-  $('#leg-prior').innerHTML = '<span class="it">A planilha calcula esta coluna por fórmula e ' +
+  $('#leg-prior').innerHTML = '<span class="it prosa">A planilha calcula esta coluna por fórmula e ' +
     fmt(d.length - naPlanilha) + ' de ' + fmt(d.length) + ' linhas estão com <b>#N/A</b>. ' +
     'O painel aplica a mesma regra em todas e lista as pendentes na conferência.</span>';
 
@@ -2671,6 +2750,14 @@ function diagnosticar(){
   });
   const aviso = (o, sev, campo, detalhe) => probs.push({sev, campo, detalhe, linha:0,
     sigla:o.sigla, unidade:o.unidade, ambiente:'— toda a aba ' + o.sigla, pav:'—', registro:null});
+  ABAS_FORA_DO_PADRAO.forEach(a => probs.push({sev:'erro', campo:'Cabeçalho da aba', linha:0,
+    sigla:a.aba, unidade:nomeUnidade(a.aba), ambiente:'— toda a aba ' + a.aba, pav:'—', registro:null,
+    detalhe:'As colunas desta aba não são as mesmas da primeira aba do levantamento. O painel casa ' +
+      'cada coluna pelo nome, mas vale igualar o cabeçalho para não haver dúvida.'}));
+  SIGLAS_SEM_NOME.forEach(sg => probs.push({sev:'branco', campo:'Nome da unidade', linha:0,
+    sigla:sg, unidade:nomeUnidade(sg), ambiente:'— toda a aba ' + sg, pav:'—', registro:null,
+    detalhe:'A sigla “' + sg + '” não está na aba de apoio "NOMES DOS HOSPITAIS". O painel usa o nome ' +
+      'que conhece da rede, mas o certo é acrescentar a linha lá.'}));
   Object.values(porAba).forEach(o => {
     if(o.prior) aviso(o, 'branco', 'Prioridade de intervenção',
       fmt(o.prior) + ' de ' + fmt(o.t) + ' linhas da aba ' + o.sigla + ' estão com #N/A nesta coluna: a fórmula ' +
