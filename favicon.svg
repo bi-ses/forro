@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Barra 1: Azul Royal -->
+  <rect x="10" y="52" width="22" height="38" rx="6" fill="#2563EB" />
+  <!-- Barra 2: Azul Turquesa / Ciano -->
+  <rect x="39" y="30" width="22" height="60" rx="6" fill="#0D9488" />
+  <!-- Barra 3: Verde Esmeralda -->
+  <rect x="68" y="10" width="22" height="80" rx="6" fill="#059669" />
+</svg>
