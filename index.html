@@ -613,6 +613,7 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
   <div class="barra-in">
     <div class="abas" role="tablist">
       <button class="aba" role="tab" id="aba-geral" aria-controls="painel-geral" data-aba="geral" aria-selected="true" tabindex="0">Visão geral</button>
+      <button class="aba" role="tab" id="aba-critico" aria-controls="painel-critico" data-aba="critico" aria-selected="false" tabindex="-1">Forro crítico</button>
       <button class="aba" role="tab" id="aba-unidades" aria-controls="painel-unidades" data-aba="unidades" aria-selected="false" tabindex="-1">Unidades</button>
       <button class="aba" role="tab" id="aba-pavimentos" aria-controls="painel-pavimentos" data-aba="pavimentos" aria-selected="false" tabindex="-1">Pavimentos</button>
       <button class="aba" role="tab" id="aba-plano" aria-controls="painel-plano" data-aba="plano" aria-selected="false" tabindex="-1">Plano de ação</button>
@@ -665,18 +666,22 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
     <section id="painel-geral" role="tabpanel" aria-labelledby="aba-geral" tabindex="0" data-painel="geral">
       <div class="kpis" id="kpis"></div>
       <div class="grade">
+        <div class="card g12">
+          <div class="card-h"><div class="card-t">Status das atividades de troca de forro (m²)</div>
+            <div class="card-s" id="sub-ativ">—</div></div>
+          <div class="plot" id="c-ativ"></div>
+          <div class="leg" id="leg-ativ"></div>
+        </div>
+        <div class="card g7">
+          <div class="card-h"><div class="card-t">A executar nos próximos 30 dias (m²)</div>
+            <div class="card-s" id="sub-d30">—</div></div>
+          <div class="plot" id="c-d30"></div>
+        </div>
         <div class="card g5">
           <div class="card-h"><div class="card-t">Estado do forro</div>
             <div class="card-s" id="sub-estado">—</div></div>
           <div class="pizza-wrap"><div class="pizza-svg" id="c-estado"></div>
             <div class="pizza-leg" id="leg-estado"></div></div>
-        </div>
-        <div class="card g7">
-          <div class="card-h"><div class="card-t">Ambientes por unidade</div>
-            <div class="card-s" id="sub-uni-geral">—</div></div>
-          <div class="plot" id="c-uni-geral"></div>
-          <div class="leg"><span class="it"><i class="sw" style="background:var(--c-prazo)"></i>Ambientes levantados</span>
-            <span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Dos quais com forro ruim</span></div>
         </div>
         <div class="card g12">
           <div class="card-h"><div class="card-t">Onde intervir primeiro</div>
@@ -698,6 +703,23 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
             <div class="card-s" id="sub-status">—</div></div>
           <div class="plot" id="c-status" style="padding-bottom:2px"></div>
           <div class="leg" id="leg-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="painel-critico" role="tabpanel" aria-labelledby="aba-critico" tabindex="0" data-painel="critico" hidden>
+      <div class="kpis" id="kpis-crit"></div>
+      <div class="grade">
+        <div class="card g12">
+          <div class="card-h"><div class="card-t">Status das atividades de troca de forro crítico (m²)</div>
+            <div class="card-s" id="sub-ativ-crit">—</div></div>
+          <div class="plot" id="c-ativ-crit"></div>
+          <div class="leg" id="leg-ativ-crit"></div>
+        </div>
+        <div class="card g12">
+          <div class="card-h"><div class="card-t">A executar nos próximos 30 dias (m²)</div>
+            <div class="card-s" id="sub-d30-crit">—</div></div>
+          <div class="plot" id="c-d30-crit"></div>
         </div>
       </div>
     </section>
@@ -1839,7 +1861,10 @@ function colunas(el, cols, opt){
            '" height="' + (h - mb - mt) + '"></rect>';
     if(c.v > 0){
       const yy = y(c.v), hh = (h-mb) - yy;
-      const pad = Math.min(10, bw*0.16), bx = ml + k*bw + pad, bwid = Math.max(6, bw - 2*pad);
+      const pad = Math.min(10, bw*0.16);
+      /* com poucas colunas a barra fica larga demais; o limite mantém a proporção */
+      const bwid = Math.max(6, Math.min(opt.barMax || 1e4, bw - 2*pad));
+      const bx = ml + k*bw + (bw - bwid)/2;
       s += '<rect class="mark" x="' + bx + '" y="' + yy + '" width="' + bwid + '" height="' + hh + '" rx="4" fill="' + c.cor +
            '"' + (c.k !== undefined ? ' data-k="' + c.k + '"' : '') +
            ' data-t="' + esc(c.tip || c.rot) + '" data-v="' + esc(c.vtxt || fmt(c.v)) + '"><title>' +
@@ -2299,7 +2324,7 @@ function barrasEmpilhadas(el, itens, segs, opt){
 /* ------------------------------------------------------------- abas */
 let ABA_ANTES_DIAG = 'geral';
 const abaDeDiagnostico = a => a === 'erros';
-const NOME_ABA = {geral:'Visão geral', unidades:'Unidades', pavimentos:'Pavimentos',
+const NOME_ABA = {geral:'Visão geral', critico:'Forro crítico', unidades:'Unidades', pavimentos:'Pavimentos',
                   plano:'Plano de ação', consulta:'Consulta', erros:'Conferência'};
 function trocarAba(nome, focar){
   if(!abaDeDiagnostico(nome)) ABA_ANTES_DIAG = nome;
@@ -2340,6 +2365,7 @@ function desenhar(){
   atualizarDiagBadges();
   return comRolagem(() => {
     if(ABA === 'geral')      return abaGeral(d);
+    if(ABA === 'critico')    return abaCritico(d);
     if(ABA === 'unidades')   return abaUnidades(d);
     if(ABA === 'pavimentos') return abaPavimentos(d);
     if(ABA === 'plano')      return abaPlano(d);
@@ -2370,6 +2396,76 @@ function atualizarDiagBadges(){
   });
 }
 
+/* ----------------------------------------------- atividades de troca de forro
+   Bloco medido em m², do jeito que a obra é contratada e paga. Três estados que
+   saem direto da coluna STATUS da planilha, sem conta nenhuma por trás:
+   EXECUTADO é o que já foi trocado; ATÉ 30 DIAS é a fila imediata; todo o resto
+   (>30 DIAS, A PLANEJAR, SEM INTERVENÇÃO) é o que ainda falta executar.
+   O mesmo bloco serve à Visão geral e à aba Forro crítico — lá recebe só as
+   linhas com ESTADO DE CRITICIDADE DO FORRO = RUIM. */
+const M2 = v => fmt(Math.round(v));
+const SEG_ATIV = [
+  {k:'aexec', nome:'A executar', cor:'var(--c-prazo)'},
+  {k:'exec',  nome:'Executado',  cor:'var(--c-concluido)'}
+];
+function kpisAtividades(d, rotTotal){
+  const area = areaDe(d);
+  const exec = d.filter(r => r.executado), pend = d.filter(r => !r.executado);
+  const d30 = d.filter(r => !r.executado && r.status === 'ATÉ 30 DIAS');
+  const unis = new Set(d.map(r => r.sigla)).size;
+  return [
+    ['info', rotTotal, M2(area),
+      plural(d.length, 'ambiente', 'ambientes') + ' em ' + plural(unis, 'unidade', 'unidades')],
+    ['good','Executado (m²)', M2(areaDe(exec)) + '<u>' + pc(areaDe(exec), area) + '</u>',
+      plural(exec.length, 'ambiente', 'ambientes') + ' com status EXECUTADO'],
+    ['warn','A executar (m²)', M2(areaDe(pend)) + '<u>' + pc(areaDe(pend), area) + '</u>',
+      plural(pend.length, 'ambiente', 'ambientes') + ' ainda não executados'],
+    ['crit','A executar nos próximos 30 dias (m²)', M2(areaDe(d30)),
+      d30.length ? plural(d30.length, 'ambiente', 'ambientes') + ' com status ATÉ 30 DIAS'
+                 : 'nenhum ambiente com status ATÉ 30 DIAS']
+  ].map(cartao).join('');
+}
+function graficosAtividades(d, ids, termo){
+  const porUni = [...new Set(d.map(r => r.sigla))].map(sg => {
+    const l = d.filter(r => r.sigla === sg);
+    return {rot:sg, nome:nomeCurto(nomeUnidade(sg)), total:areaDe(l),
+            exec:areaDe(l.filter(r => r.executado)),
+            aexec:areaDe(l.filter(r => !r.executado)),
+            d30:areaDe(l.filter(r => !r.executado && r.status === 'ATÉ 30 DIAS'))};
+  }).filter(o => o.total > 0);
+
+  const porArea = porUni.slice().sort((a,b) => b.total - a.total || a.rot.localeCompare(b.rot,'pt-BR'));
+  const totalPend = porUni.reduce((a,o) => a + o.aexec, 0);
+  $(ids.sub).textContent = porArea.length
+    ? M2(totalPend) + ' m² ainda a executar de ' + M2(porArea.reduce((a,o) => a + o.total, 0)) +
+      ' m² de ' + termo + ' levantados · barra ordenada pela área da unidade'
+    : 'Nada no recorte atual';
+  barrasEmpilhadas($(ids.graf), porArea, SEG_ATIV,
+    {alvo: Math.max(170, Math.min(330, porArea.length*38 + 24)), altMax:28,
+     fmtV:M2, sufixo:' m²', aria:'área por unidade e status da troca de forro'});
+  $(ids.leg).innerHTML = SEG_ATIV.map(g =>
+    '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('');
+
+  const por30 = porUni.filter(o => o.d30 > 0).sort((a,b) => b.d30 - a.d30 || a.rot.localeCompare(b.rot,'pt-BR'));
+  $(ids.sub30).textContent = por30.length
+    ? M2(por30.reduce((a,o) => a + o.d30, 0)) + ' m² em ' + plural(por30.length, 'unidade', 'unidades') +
+      ' · linhas com status ATÉ 30 DIAS na planilha'
+    : 'Nenhum ambiente com status ATÉ 30 DIAS no recorte atual';
+  colunas($(ids.graf30), por30.map(o => ({
+    rot:o.rot, v:o.d30, vtxt:M2(o.d30), cor:'var(--c-critico)',
+    tip:o.nome + ' — a executar nos próximos 30 dias'
+  })), {altura:270, barMax:86, aria:'área a executar nos próximos 30 dias por unidade',
+        vazio:'Nenhum ambiente com status ATÉ 30 DIAS no recorte atual'});
+}
+
+/* ------------------------------------------------------------- forro crítico */
+function abaCritico(d){
+  const dc = d.filter(r => r.ruim);
+  $('#kpis-crit').innerHTML = kpisAtividades(dc, 'Área de forro crítico total (m²)');
+  graficosAtividades(dc, {sub:'#sub-ativ-crit', graf:'#c-ativ-crit', leg:'#leg-ativ-crit',
+                          sub30:'#sub-d30-crit', graf30:'#c-d30-crit'}, 'forro crítico');
+}
+
 /* ------------------------------------------------------------- visão geral */
 function abaGeral(d){
   const total = d.length, area = areaDe(d);
@@ -2377,17 +2473,9 @@ function abaGeral(d){
   const foco = d.filter(r => r.foco), exec = d.filter(r => r.executado);
   const unis = new Set(d.map(r => r.sigla)).size;
 
-  $('#kpis').innerHTML = [
-    ['info','Ambientes levantados', fmt(total),
-      areaTxt(area) + ' em ' + plural(unis, 'unidade', 'unidades')],
-    ['crit','Forro em estado ruim', fmt(ruim.length) + '<u>' + pc(ruim.length, total) + '</u>',
-      areaTxt(areaDe(ruim)) + ' a substituir ou reparar'],
-    ['warn','Em área crítica', fmt(crit.length) + '<u>' + pc(crit.length, total) + '</u>',
-      foco.length ? fmt(foco.length) + ' com forro ruim · ' + areaTxt(areaDe(foco))
-                  : 'nenhuma com forro ruim'],
-    ['good','Já executado', fmt(exec.length) + '<u>' + pc(exec.length, total) + '</u>',
-      areaTxt(areaDe(exec)) + ' de forro entregue']
-  ].map(cartao).join('');
+  $('#kpis').innerHTML = kpisAtividades(d, 'Área total (m²)');
+  graficosAtividades(d, {sub:'#sub-ativ', graf:'#c-ativ', leg:'#leg-ativ',
+                         sub30:'#sub-d30', graf30:'#c-d30'}, 'forro');
 
   /* 1. estado do forro */
   const segEst = ESTADOS.map(e => ({nome:e.nome, cor:e.cor, v:d.filter(r => r.estado === e.nome).length}))
@@ -2426,16 +2514,7 @@ function abaGeral(d){
   $('#leg-matriz').innerHTML = usados.map(g =>
     '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('');
 
-  /* 3. ambientes por unidade */
-  const porUni = Object.entries(agrupa(d, 'sigla')).sort((a,b) => b[1].ruim - a[1].ruim || b[1].t - a[1].t);
-  $('#sub-uni-geral').textContent = porUni.length
-    ? 'Ordenadas pelo número de forros em estado ruim' : 'Nada no recorte atual';
-  barrasH($('#c-uni-geral'), porUni.map(([k,o]) => ({
-    rot:k, v:o.t, vtxt:fmt(o.t), cor:'var(--c-prazo)', tip:nomeCurto(nomeUnidade(k)) + ' — ambientes levantados',
-    v2:o.ruim, v2txt:fmt(o.ruim), cor2:'var(--c-atraso)', tip2:nomeCurto(nomeUnidade(k)) + ' — forro em estado ruim'
-  })), {alvo: Math.max(150, Math.min(320, porUni.length*40 + 20)), altMax:30, aria:'ambientes por unidade'});
-
-  /* 4. status */
+  /* 3. status */
   const segSt = STATUS_LISTA.map(x => ({nome:x.nome, cor:x.cor, v:d.filter(r => r.status === x.nome).length}))
     .concat([{nome:SEM_STATUS, cor:'var(--c-planejar)', v:d.filter(r => r.status === SEM_STATUS).length}])
     .filter(g => g.v);
