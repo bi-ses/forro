@@ -2408,18 +2408,26 @@ const SEG_ATIV = [
   {k:'aexec', nome:'A executar', cor:'var(--c-prazo)'},
   {k:'exec',  nome:'Executado',  cor:'var(--c-concluido)'}
 ];
+/* "A executar" é o serviço já programado: ATÉ 30 DIAS e >30 DIAS. A PLANEJAR e
+   SEM INTERVENÇÃO não entram nessa conta nem nas barras — ainda não viraram serviço.
+   Por isso a soma das barras de uma unidade pode ser menor que a área levantada dela. */
+const STATUS_PROGRAMADO = ['ATÉ 30 DIAS', '>30 DIAS'];
+const programado = r => !r.executado && STATUS_PROGRAMADO.includes(r.status);
+const foraDaConta = r => !r.executado && !programado(r);
 function kpisAtividades(d, rotTotal){
   const area = areaDe(d);
-  const exec = d.filter(r => r.executado), pend = d.filter(r => !r.executado);
+  const exec = d.filter(r => r.executado), prog = d.filter(programado);
+  const fora = d.filter(foraDaConta);
   const d30 = d.filter(r => !r.executado && r.status === 'ATÉ 30 DIAS');
   const unis = new Set(d.map(r => r.sigla)).size;
+  const detalheFora = fora.length ? ' · ' + M2(areaDe(fora)) + ' m² fora, a planejar' : '';
   return [
     ['info', rotTotal, M2(area),
       plural(d.length, 'ambiente', 'ambientes') + ' em ' + plural(unis, 'unidade', 'unidades')],
     ['good','Executado (m²)', M2(areaDe(exec)) + '<u>' + pc(areaDe(exec), area) + '</u>',
       plural(exec.length, 'ambiente', 'ambientes') + ' com status EXECUTADO'],
-    ['warn','A executar (m²)', M2(areaDe(pend)) + '<u>' + pc(areaDe(pend), area) + '</u>',
-      plural(pend.length, 'ambiente', 'ambientes') + ' ainda não executados'],
+    ['warn','A executar (m²)', M2(areaDe(prog)) + '<u>' + pc(areaDe(prog), area) + '</u>',
+      plural(prog.length, 'ambiente', 'ambientes') + ' programados' + detalheFora],
     ['crit','A executar nos próximos 30 dias (m²)', M2(areaDe(d30)),
       d30.length ? plural(d30.length, 'ambiente', 'ambientes') + ' com status ATÉ 30 DIAS'
                  : 'nenhum ambiente com status ATÉ 30 DIAS']
@@ -2428,17 +2436,21 @@ function kpisAtividades(d, rotTotal){
 function graficosAtividades(d, ids, termo){
   const porUni = [...new Set(d.map(r => r.sigla))].map(sg => {
     const l = d.filter(r => r.sigla === sg);
-    return {rot:sg, nome:nomeCurto(nomeUnidade(sg)), total:areaDe(l),
-            exec:areaDe(l.filter(r => r.executado)),
-            aexec:areaDe(l.filter(r => !r.executado)),
+    const exec = areaDe(l.filter(r => r.executado)), aexec = areaDe(l.filter(programado));
+    /* o comprimento da barra é serviço programado + executado, não a área levantada */
+    return {rot:sg, nome:nomeCurto(nomeUnidade(sg)), total:exec + aexec, exec:exec, aexec:aexec,
+            levantado:areaDe(l), fora:areaDe(l.filter(foraDaConta)),
             d30:areaDe(l.filter(r => !r.executado && r.status === 'ATÉ 30 DIAS'))};
-  }).filter(o => o.total > 0);
+  }).filter(o => o.total > 0 || o.levantado > 0);
 
-  const porArea = porUni.slice().sort((a,b) => b.total - a.total || a.rot.localeCompare(b.rot,'pt-BR'));
-  const totalPend = porUni.reduce((a,o) => a + o.aexec, 0);
+  const porArea = porUni.filter(o => o.total > 0)
+    .sort((a,b) => b.total - a.total || a.rot.localeCompare(b.rot,'pt-BR'));
+  const totalProg = porUni.reduce((a,o) => a + o.aexec, 0);
+  const totalFora = porUni.reduce((a,o) => a + o.fora, 0);
   $(ids.sub).textContent = porArea.length
-    ? M2(totalPend) + ' m² ainda a executar de ' + M2(porArea.reduce((a,o) => a + o.total, 0)) +
-      ' m² de ' + termo + ' levantados · barra ordenada pela área da unidade'
+    ? M2(totalProg) + ' m² de ' + termo + ' programados e ' +
+      M2(porArea.reduce((a,o) => a + o.exec, 0)) + ' m² já executados' +
+      (totalFora ? ' · ' + M2(totalFora) + ' m² a planejar ou sem intervenção ficam fora da barra' : '')
     : 'Nada no recorte atual';
   barrasEmpilhadas($(ids.graf), porArea, SEG_ATIV,
     {alvo: Math.max(170, Math.min(330, porArea.length*38 + 24)), altMax:28,
@@ -2519,8 +2531,11 @@ function abaGeral(d){
     .concat([{nome:SEM_STATUS, cor:'var(--c-planejar)', v:d.filter(r => r.status === SEM_STATUS).length}])
     .filter(g => g.v);
   const pend = d.filter(r => !r.executado).length;
+  const areaProg = areaDe(d.filter(programado)), areaFora = areaDe(d.filter(foraDaConta));
   $('#sub-status').textContent = total
-    ? plural(pend, 'ambiente ainda pendente', 'ambientes ainda pendentes') + ' · ' + areaTxt(areaDe(d.filter(r => !r.executado)))
+    ? plural(pend, 'ambiente ainda não executado', 'ambientes ainda não executados') + ' · ' +
+      M2(areaProg) + ' m² já programados' +
+      (areaFora ? ' e ' + M2(areaFora) + ' m² a planejar ou sem intervenção' : '')
     : 'Nada no recorte atual';
   barra100($('#c-status'), segSt, total);
   $('#leg-status').innerHTML = segSt.map(g =>
