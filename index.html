@@ -2286,7 +2286,7 @@ function barrasEmpilhadas(el, itens, segs, opt){
   const esc0 = v => Math.max(0, (x1 - x0) * v / max);
 
   const descricao = (opt.aria || 'barras empilhadas') + ': ' +
-    itens.map(i => i.rot + ' ' + fmtV(i.total) + ' (' + segs.map(g => g.nome + ' ' + fmtV(i[g.k] || 0)).join(', ') + ')').join('; ');
+    itens.map(i => i.rot + ' ' + (opt.fmtTip || fmtV)(i.total) + ' (' + segs.map(g => g.nome + ' ' + (opt.fmtTip || fmtV)(i[g.k] || 0)).join(', ') + ')').join('; ');
   let s = '<svg width="' + larg + '" height="' + altura + '" viewBox="0 0 ' + larg + ' ' + altura +
           '" role="img" aria-label="' + esc(descricao) + '">';
   itens.forEach((it, k) => {
@@ -2304,7 +2304,7 @@ function barrasEmpilhadas(el, itens, segs, opt){
       /* o primeiro e o último segmento arredondam só do lado de fora da barra */
       const r = (gi === 0 || x === x0) ? 4 : 0;
       s += '<rect class="mark" x="' + x + '" y="' + y + '" width="' + w + '" height="' + alt + '" rx="' + r +
-           '" fill="' + g.cor + '" data-t="' + esc(it.rot + ' · ' + g.nome) + '" data-v="' + esc(fmtV(v) +
+           '" fill="' + g.cor + '" data-t="' + esc(it.rot + ' · ' + g.nome) + '" data-v="' + esc((opt.fmtTip || fmtV)(v) +
            (opt.sufixo || '') + ' · ' + pc(v, it.total) + ' da faixa') + '"><title>' +
            esc(it.rot + ' · ' + g.nome + ': ' + fmtV(v)) + '</title></rect>';
       if(w > larguraTexto(fmtV(v), F_SEG) + 14)
@@ -2403,7 +2403,13 @@ function atualizarDiagBadges(){
    (>30 DIAS, A PLANEJAR, SEM INTERVENÇÃO) é o que ainda falta executar.
    O mesmo bloco serve à Visão geral e à aba Forro crítico — lá recebe só as
    linhas com ESTADO DE CRITICIDADE DO FORRO = RUIM. */
-const M2 = v => fmt(Math.round(v));
+/* m² no padrão do Power BI: acima de mil, "56,95 mil"; abaixo, inteiro. O valor exato
+   continua no passar do mouse (M2_EXATO). */
+const M2 = v => Math.abs(v) >= 1000
+  ? (Math.round(v / 10) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' mil'
+  : fmt(Math.round(v));
+const M2_EXATO = v => fmt(Math.round(v));
+const M2_KPI = v => '<span title="' + M2_EXATO(v) + ' m²">' + M2(v) + '</span>';
 const SEG_ATIV = [
   {k:'aexec', nome:'A executar', cor:'var(--c-prazo)'},
   {k:'exec',  nome:'Executado',  cor:'var(--c-concluido)'}
@@ -2420,15 +2426,15 @@ function kpisAtividades(d, rotTotal){
   const fora = d.filter(foraDaConta);
   const d30 = d.filter(r => !r.executado && r.status === 'ATÉ 30 DIAS');
   const unis = new Set(d.map(r => r.sigla)).size;
-  const detalheFora = fora.length ? ' · ' + M2(areaDe(fora)) + ' m² fora, a planejar' : '';
+  const detalheFora = fora.length ? ' · ' + M2(areaDe(fora)) + ' m² a planejar' : '';
   return [
-    ['info', rotTotal, M2(area),
+    ['info', rotTotal, M2_KPI(area),
       plural(d.length, 'ambiente', 'ambientes') + ' em ' + plural(unis, 'unidade', 'unidades')],
-    ['good','Executado (m²)', M2(areaDe(exec)) + '<u>' + pc(areaDe(exec), area) + '</u>',
+    ['good','Executado (m²)', M2_KPI(areaDe(exec)) + '<u>' + pc(areaDe(exec), area) + '</u>',
       plural(exec.length, 'ambiente', 'ambientes') + ' com status EXECUTADO'],
-    ['warn','A executar (m²)', M2(areaDe(prog)) + '<u>' + pc(areaDe(prog), area) + '</u>',
+    ['warn','A executar (m²)', M2_KPI(areaDe(prog)) + '<u>' + pc(areaDe(prog), area) + '</u>',
       plural(prog.length, 'ambiente', 'ambientes') + ' programados' + detalheFora],
-    ['crit','A executar nos próximos 30 dias (m²)', M2(areaDe(d30)),
+    ['crit','A executar nos próximos 30 dias (m²)', M2_KPI(areaDe(d30)),
       d30.length ? plural(d30.length, 'ambiente', 'ambientes') + ' com status ATÉ 30 DIAS'
                  : 'nenhum ambiente com status ATÉ 30 DIAS']
   ].map(cartao).join('');
@@ -2454,7 +2460,7 @@ function graficosAtividades(d, ids, termo){
     : 'Nada no recorte atual';
   barrasEmpilhadas($(ids.graf), porArea, SEG_ATIV,
     {alvo: Math.max(170, Math.min(330, porArea.length*38 + 24)), altMax:28,
-     fmtV:M2, sufixo:' m²', aria:'área por unidade e status da troca de forro'});
+     fmtV:M2, fmtTip:M2_EXATO, sufixo:' m²', aria:'área por unidade e status da troca de forro'});
   $(ids.leg).innerHTML = SEG_ATIV.map(g =>
     '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('');
 
@@ -2464,8 +2470,8 @@ function graficosAtividades(d, ids, termo){
       ' · linhas com status ATÉ 30 DIAS na planilha'
     : 'Nenhum ambiente com status ATÉ 30 DIAS no recorte atual';
   colunas($(ids.graf30), por30.map(o => ({
-    rot:o.rot, v:o.d30, vtxt:M2(o.d30), cor:'var(--c-critico)',
-    tip:o.nome + ' — a executar nos próximos 30 dias'
+    rot:o.rot, v:o.d30, vtxt:M2_EXATO(o.d30), cor:'var(--c-critico)',
+    tip:o.nome + ' — a executar nos próximos 30 dias (' + M2_EXATO(o.d30) + ' m²)'
   })), {altura:270, barMax:86, aria:'área a executar nos próximos 30 dias por unidade',
         vazio:'Nenhum ambiente com status ATÉ 30 DIAS no recorte atual'});
 }
