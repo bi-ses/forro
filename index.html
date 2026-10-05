@@ -22,7 +22,9 @@
   --s1:#2a78d6; --s3:#1baf7a;
 
   /* cores dos dados — redefinidas no modo escuro para manter contraste e leitura */
-  --c-atraso:#d03b3b; --c-atraso-2:#8c1f1f; --c-critico:#fab219; --c-prazo:#2a78d6;
+  /* azul escurecido de #2a78d6 para #1f68c4: o rótulo branco dentro da barra tinha
+     4,4:1 de contraste, abaixo do mínimo de 4,5:1 da WCAG para texto pequeno */
+  --c-atraso:#d03b3b; --c-atraso-2:#8c1f1f; --c-critico:#fab219; --c-prazo:#1f68c4;
   --c-planejar:#a9b4c2; --c-concluido:#0ca30c; --c-iniciar:#00a3a3; --c-projeto:#7a4fd0; --c-fiscal:#b5761f;
   --c-base:#c3ccd8; --c-apagado:#c9d3e0; --c-area:#1baf7a; --c-area-atraso:#ec835a;
   --c-curva:#0f2759; --c-geres:#c7cfd8;
@@ -210,6 +212,24 @@ html[data-theme="dark"] #contador-recorte.filtrado{background:#22304a;color:var(
   color:var(--navy);background:#fff;border-radius:999px;padding:2px 8px}
 html[data-theme="dark"] #contador-recorte .marca{background:var(--surface);color:var(--navy-2)}
 @media(max-width:860px){.f.recorte{margin-left:0;flex:1 1 100%}}
+/* cada valor que estreita o recorte vira uma pílula removível: dá para ver de relance
+   o que está filtrando e desfazer um critério de cada vez, sem abrir o seletor */
+#pilulas-recorte{flex:1 1 300px;display:flex;flex-wrap:wrap;gap:6px 7px;align-items:center;min-height:34px}
+#pilulas-recorte .pr-t{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-right:2px}
+.pilula{display:inline-flex;align-items:center;gap:7px;max-width:100%;background:#eaf2fd;
+  border:1px solid var(--navy-3);color:var(--navy);border-radius:999px;padding:3px 7px 3px 10px;
+  font-size:12px;font-weight:600;line-height:1.5}
+.pilula .vl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pilula i{font-style:normal;font-size:15px;line-height:1;opacity:.6;flex:0 0 auto}
+.pilula:hover{background:var(--navy);border-color:var(--navy);color:#fff}
+.pilula:hover i{opacity:1}
+.pilula:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+#pilulas-recorte .pr-tudo{background:transparent;border:0;color:var(--muted);font-size:11.5px;
+  text-decoration:underline;padding:3px 4px}
+#pilulas-recorte .pr-tudo:hover{color:var(--navy)}
+html[data-theme="dark"] .pilula{background:#22304a;border-color:var(--navy-3);color:var(--navy-2)}
+html[data-theme="dark"] .pilula:hover{background:var(--navy-2);border-color:var(--navy-2);color:#0b1220}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin-bottom:14px}
 /* dentro da coluna "Em execução": quanto daquilo vence nos próximos 30 dias */
@@ -266,9 +286,9 @@ g.linha:hover .faixa-hover{fill:rgba(15,39,89,.045)}
 
 .leg{display:flex;flex-wrap:wrap;gap:8px 20px;padding:0 18px 16px}
 .leg .it{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-.leg .it.prosa{display:block;gap:0;line-height:1.55;max-width:68ch}
 .leg .sw{width:11px;height:11px;border-radius:3px;flex:0 0 11px}
-.leg .sw-alerta{background:transparent;border:2px dashed var(--navy);border-radius:3px}
+/* o selo da legenda é o mesmo contorno do gráfico, traço por traço */
+.leg .sw-alerta{flex:0 0 17px}
 .leg b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .leg .pc{color:var(--muted)}
 
@@ -675,6 +695,7 @@ html[data-theme="dark"] .spinner{border-color:var(--grid);border-top-color:var(-
         <input id="f-bus" type="search" autocomplete="off" spellcheck="false"
           title="Várias palavras somam. Aspas para expressão exata. Sinal de menos para excluir."></div>
       <button class="btn-limpar" id="b-limpar">Limpar</button>
+      <div id="pilulas-recorte" hidden></div>
       <div class="f recorte"><label>Recorte atual</label><div id="contador-recorte" aria-live="polite">—</div></div>
     </div>
 
@@ -893,7 +914,15 @@ const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g,'')
 const fmt  = n => new Intl.NumberFormat('pt-BR').format(n);
 const fmt1 = n => new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(n);
 const pc   = (a,b) => b ? fmt1(100*a/b) + '%' : '—';
-const areaTxt = a => a >= 1000 ? fmt1(a/1000) + ' mil m²' : fmt(Math.round(a)) + ' m²';
+/* m² no padrão do Power BI: acima de mil, "56,95 mil"; abaixo, inteiro. O valor exato
+   continua no passar do mouse (M2_EXATO). É o único formato de área do painel — areaTxt
+   só acrescenta a unidade. */
+const M2 = v => Math.abs(v) >= 1000
+  ? (Math.round(v / 10) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' mil'
+  : fmt(Math.round(v));
+const M2_EXATO = v => fmt(Math.round(v));
+const M2_KPI = v => '<span title="' + M2_EXATO(v) + ' m²">' + M2(v) + '</span>';
+const areaTxt = a => M2(a) + ' m²';
 const dbr  = d => d ? d.toLocaleDateString('pt-BR') : '';
 const iso  = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
 const esc  = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1228,9 +1257,9 @@ function montarBase(abas){
 
 /* -------- vocabulário do levantamento -------- */
 const ESTADOS = [
-  {nome:'RUIM',    cor:'var(--c-atraso)',    txt:'#fff', prior:1},
-  {nome:'REGULAR', cor:'var(--c-critico)',   txt:'var(--sobre-amarelo)', prior:2},
-  {nome:'BOM',     cor:'var(--c-concluido)', txt:'#fff', prior:3}
+  {nome:'RUIM',    cor:'var(--c-atraso)',    prior:1},
+  {nome:'REGULAR', cor:'var(--c-critico)',   prior:2},
+  {nome:'BOM',     cor:'var(--c-concluido)', prior:3}
 ];
 /* RDC 50/2002 (ANVISA) classifica os ambientes de estabelecimento assistencial de saúde
    em três faixas de risco — críticas, semicríticas e não críticas — e é esse o vocabulário
@@ -1239,6 +1268,12 @@ const ESTADOS = [
    "SEMI CRÍTICA"; o painel exibe a forma correta e preserva o texto original na tabela
    que reproduz a linha. Um ambiente pertence a uma faixa só: célula com duas
    classificações juntas é erro, e vai para a conferência em vez de virar categoria. */
+/* a definição de cada faixa fica na dica do rótulo, não num parágrafo abaixo do gráfico */
+const DICA_RISCO = {
+  'CRÍTICA':      'RDC 50/2002 — ambiente de procedimento invasivo ou com paciente imunodeprimido',
+  'SEMICRÍTICA':  'RDC 50/2002 — ambiente com paciente sem doença infecciosa transmissível',
+  'NÃO CRÍTICA':  'RDC 50/2002 — ambiente sem ocupação por paciente'
+};
 const RISCOS = [
   {nome:'CRÍTICA',      cor:'var(--c-atraso-2)'},
   {nome:'SEMICRÍTICA',  cor:'var(--c-area-atraso)'},
@@ -1826,8 +1861,9 @@ function barrasH(el, itens, opt){
     const rot = encurtar(it.rot, larguraRot, F_ROT);
     s += '<g class="linha"' + (opt.clique && it.chave !== undefined ? ' data-chave="' + esc(it.chave) + '" style="cursor:pointer"' : '') + '>';
     s += '<rect class="faixa-hover" x="0" y="' + (y-3) + '" width="' + larg + '" height="' + (alt+6) + '" rx="4"></rect>';
+    const dica = dicaDoRotulo(rot, it.rot, opt);
     s += '<text class="clab" x="' + (x0-10) + '" y="' + (y + alt/2 + 4) + '" text-anchor="end">' + esc(rot) +
-         (rot === it.rot ? '' : '<title>' + esc(it.rot) + '</title>') + '</text>';
+         (dica ? '<title>' + esc(dica) + '</title>' : '') + '</text>';
     if(w > 0){
       s += '<rect class="mark" x="' + x0 + '" y="' + y + '" width="' + w + '" height="' + alt + '" rx="4" fill="' + it.cor +
            '" data-t="' + esc(it.tip || it.rot) + '" data-v="' + esc(it.vtxt) + '"><title>' +
@@ -1966,7 +2002,7 @@ function pizza(el, segs, total, termo){
       if(g.v/total >= 0.07){
         const [lx,ly] = p((R+Ri)/2, a0 + ang/2);
         s += '<text x="' + lx + '" y="' + (+ly+4) + '" text-anchor="middle" style="font-size:12px;font-weight:700;fill:' +
-             (g.txt || '#fff') + '">' + pc(g.v,total) + '</text>';
+             tintaSobre(g.cor) + '">' + pc(g.v,total) + '</text>';
       }
       a0 = a1;
     });
@@ -2180,8 +2216,9 @@ const agrupa = (d, chave) => {
   return m;
 };
 function cabecalho(cols, ord){
-  return cols.map(([k,rot,cls]) =>
-    '<th scope="col" role="columnheader" tabindex="0" data-k="' + k + '" class="' + cls + '" aria-sort="' +
+  return cols.map(([k,rot,cls,dica]) =>
+    '<th scope="col" role="columnheader" tabindex="0" data-k="' + k + '" class="' + cls + '"' +
+    (dica ? ' title="' + esc(dica) + '"' : '') + ' aria-sort="' +
     (ord.col === k ? (ord.dir > 0 ? 'ascending' : 'descending') : 'none') + '">' + esc(rot) +
     '<span class="ar" aria-hidden="true">' + (ord.col === k ? (ord.dir > 0 ? '▲' : '▼') : '⇅') + '</span></th>').join('');
 }
@@ -2208,6 +2245,57 @@ function barraComp(o){
 /* Barras horizontais empilhadas: cada linha é uma categoria e os segmentos somam o total.
    Serve para ler duas dimensões de uma vez — quanto tem em cada faixa e como esse total se
    reparte — sem a leitura em grade, que obriga a comparar números soltos. */
+/* O rótulo da barra leva o nome inteiro quando foi cortado, e a definição da faixa
+   quando houver uma: o painel ensina no passar do mouse, em vez de gastar um parágrafo
+   de tela com o que a maioria já sabe. */
+function dicaDoRotulo(mostrado, inteiro, opt){
+  const cortado = mostrado === inteiro ? '' : inteiro;
+  const glosa = (opt && opt.dicaRot && opt.dicaRot[inteiro]) || '';
+  return cortado && glosa ? cortado + ' — ' + glosa : (cortado || glosa);
+}
+
+/* ---------- tinta do rótulo que fica por cima do preenchimento ----------
+   Escolher branco ou tinta escura à mão erra de dois jeitos: o azul das barras com
+   branco por cima dava 4,4:1 e o verde 3,3:1 — abaixo do mínimo de 4,5:1 da WCAG para
+   texto pequeno — e no tema escuro, onde as cores clareiam, a resposta certa muda.
+   A tinta passa a sair da luminância do próprio preenchimento, recalculada a cada
+   troca de tema (as cores são variáveis CSS e mudam de valor com ele). */
+const TINTA_ESCURA = '#17202e';
+let TINTA_CACHE = {}, TINTA_TEMA = null;
+function corResolvida(c){
+  const m = /var\(\s*(--[\w-]+)/.exec(String(c));
+  if(!m) return String(c).trim();
+  const v = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+  return v || String(c).trim();
+}
+function luminancia(cor){
+  const h = String(cor).replace('#','').trim();
+  const pares = h.length === 3 ? [...h].map(x => x + x)
+              : h.length >= 6 ? [h.slice(0,2), h.slice(2,4), h.slice(4,6)] : null;
+  if(!pares) return null;
+  const canais = pares.map(p => {
+    const n = parseInt(p, 16);
+    if(!isFinite(n)) return null;
+    const v = n / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return canais.some(v => v === null) ? null
+    : 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
+}
+const razaoContraste = (a,b) => (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
+const L_BRANCO = 1, L_TINTA = luminancia(TINTA_ESCURA);
+function tintaSobre(cor){
+  const tema = document.documentElement.getAttribute('data-theme') || 'light';
+  if(tema !== TINTA_TEMA){ TINTA_CACHE = {}; TINTA_TEMA = tema; }
+  const chave = String(cor);
+  if(TINTA_CACHE[chave]) return TINTA_CACHE[chave];
+  const l = luminancia(corResolvida(cor));
+  const tinta = l === null ? '#fff'
+    : razaoContraste(l, L_BRANCO) >= razaoContraste(l, L_TINTA) ? '#fff' : TINTA_ESCURA;
+  TINTA_CACHE[chave] = tinta;
+  return tinta;
+}
+
 function barrasEmpilhadas(el, itens, segs, opt){
   opt = opt || {};
   const alvo = opt.alvo || 260;
@@ -2239,7 +2327,8 @@ function barrasEmpilhadas(el, itens, segs, opt){
     s += '<g class="linha">';
     s += '<rect class="faixa-hover" x="0" y="' + (y-3) + '" width="' + larg + '" height="' + (alt+6) + '" rx="4"></rect>';
     s += '<text class="clab" x="' + (x0-10) + '" y="' + (y + alt/2 + 4) + '" text-anchor="end">' + esc(rot) +
-         (rot === it.rot ? '' : '<title>' + esc(it.rot) + '</title>') + '</text>';
+         (dicaDoRotulo(rot, it.rot, opt) ? '<title>' + esc(dicaDoRotulo(rot, it.rot, opt)) + '</title>' : '') +
+         '</text>';
     let x = x0;
     segs.forEach((g,gi) => {
       const v = it[g.k] || 0;
@@ -2258,7 +2347,7 @@ function barrasEmpilhadas(el, itens, segs, opt){
            esc(it.rot + ' · ' + g.nome + ': ' + fmtV(v)) + '</title></rect>';
       if(w > larguraTexto(fmtV(v), F_SEG) + 14)
         s += '<text class="slab" x="' + (x + w/2) + '" y="' + (y + alt/2 + 4) + '" text-anchor="middle" ' +
-             'style="fill:' + (g.txt || '#fff') + '">' + esc(fmtV(v)) + '</text>';
+             'style="fill:' + tintaSobre(g.cor) + '">' + esc(fmtV(v)) + '</text>';
       if(alerta)
         s += '<rect x="' + (x + 1) + '" y="' + (y + 1) + '" width="' + Math.max(1, w - 2) + '" height="' + (alt - 2) +
              '" rx="' + Math.max(0, r - 1) + '" fill="none" stroke="var(--navy)" stroke-width="2" ' +
@@ -2337,10 +2426,35 @@ function atualizarContador(d){
       ' ambientes do levantamento (' + M2_EXATO(areaDe(d)) + ' m² de ' + M2_EXATO(areaDe(LINHAS)) + ' m²).'
     : 'Sem filtros: o painel mostra o levantamento inteiro.';
 }
+/* Cada critério ativo vira uma pílula com um × próprio. O contador diz quanto o recorte
+   reteve; as pílulas dizem por causa de quê, e permitem soltar um critério sem abrir o
+   seletor nem zerar tudo no Limpar. */
+const ROT_CAMPO = {uni:'Unidade', ris:'Risco', est:'Estado', sit:'Status', pla:'Plano'};
+function atualizarPilulas(){
+  const el = $('#pilulas-recorte');
+  if(!el) return;
+  const p = [];
+  MULTI.forEach(m => {
+    /* o filtro de estado fica oculto na aba de forro crítico; a pílula também */
+    if(m.campo === 'est' && ABA === 'critico') return;
+    F[m.campo].forEach(v => p.push({campo:m.campo, v:v,
+      rot:ROT_CAMPO[m.campo] + ': ' + (m.sigla ? siglaDe(v) : v)}));
+  });
+  if(F.bus) p.push({campo:'bus', v:'', rot:'Busca: “' + F.bus + '”'});
+  el.hidden = !p.length;
+  if(!p.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="pr-t">Filtros ativos</span>' +
+    p.map(o => '<button type="button" class="pilula" data-campo="' + o.campo + '" data-v="' + esc(o.v) +
+      '" aria-label="Remover o filtro ' + esc(o.rot) + '" title="Remover este filtro">' +
+      '<span class="vl">' + esc(o.rot) + '</span><i aria-hidden="true">×</i></button>').join('') +
+    (p.length > 1 ? '<button type="button" class="pr-tudo" data-tudo>limpar todos</button>' : '');
+}
+
 function desenhar(){
   if(!LINHAS.length) return;
   const d = filtradas();
   atualizarContador(d);
+  atualizarPilulas();
   resumoImpressao(d.length);
   atualizarDiagBadges();
   return comRolagem(() => {
@@ -2381,20 +2495,13 @@ function atualizarDiagBadges(){
    trocado, EM EXECUÇÃO é o serviço em andamento, e A PLANEJAR e SEM INTERVENÇÃO
    ainda não viraram serviço. O mesmo bloco serve à Visão geral e à aba Forro
    crítico — lá recebe só as linhas com ESTADO DE CRITICIDADE DO FORRO = RUIM. */
-/* m² no padrão do Power BI: acima de mil, "56,95 mil"; abaixo, inteiro. O valor exato
-   continua no passar do mouse (M2_EXATO). */
-const M2 = v => Math.abs(v) >= 1000
-  ? (Math.round(v / 10) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' mil'
-  : fmt(Math.round(v));
-const M2_EXATO = v => fmt(Math.round(v));
-const M2_KPI = v => '<span title="' + M2_EXATO(v) + ' m²">' + M2(v) + '</span>';
 /* A barra de cada unidade fecha na área levantada dela: em execução + executado +
    a planejar. Antes o que ainda não virou serviço ficava fora da barra e era explicado
    por escrito — o leitor tinha de somar de cabeça para saber o que a barra representava. */
 const SEG_ATIV = [
   {k:'aexec', nome:'Em execução', cor:'var(--c-prazo)'},
   {k:'exec',  nome:'Executado',   cor:'var(--c-concluido)'},
-  {k:'fora',  nome:'A planejar',  cor:'var(--c-planejar)', txt:'var(--sobre-cinza)'}
+  {k:'fora',  nome:'A planejar',  cor:'var(--c-planejar)'}
 ];
 /* "A executar" é o serviço em execução. A PLANEJAR e SEM INTERVENÇÃO não entram nessa
    conta nem nas barras — ainda não viraram serviço. Por isso a soma das barras de uma
@@ -2406,16 +2513,34 @@ function kpisAtividades(d, rotTotal){
   const exec = d.filter(r => r.executado), prog = d.filter(programado);
   const fora = d.filter(foraDaConta);
   const unis = new Set(d.map(r => r.sigla)).size;
+  const cabeca = ['info', rotTotal, M2_KPI(area),
+      plural(d.length, 'ambiente', 'ambientes') + ' em ' + plural(unis, 'unidade', 'unidades')];
+  /* Quando o próprio filtro já fixou o status, repartir o recorte por status devolve um
+     cartão cheio e dois zerados — três quartos da faixa sem informação nenhuma, e um
+     "tudo já executado" que vale para a fatia e não para o levantamento. Nesse caso a
+     repartição passa para o estado do forro, que o filtro não fixou. */
+  const porEstado = ESTADOS.map(e => [e, d.filter(r => r.estado === e.nome)]);
+  if(F.sit.length && [exec, prog, fora].filter(l => l.length).length <= 1 &&
+     porEstado.filter(([,l]) => l.length).length > 1){
+    const marca = {RUIM:'crit', REGULAR:'warn', BOM:'good'};
+    return [cabeca].concat(porEstado.map(([e,l]) => {
+      const a = areaDe(l);
+      return [marca[e.nome] || 'info', 'Forro ' + e.nome.toLowerCase() + ' (m²)',
+        M2_KPI(a) + '<u>' + pc(a, area) + '</u>',
+        !l.length ? 'nenhum ambiente neste recorte'
+          : plural(l.length, 'ambiente', 'ambientes') +
+            (e.nome === 'RUIM' ? ' para troca imediata' : e.nome === 'REGULAR' ? ' sob monitoramento' : ' sem pendência')];
+    })).map(cartao).join('');
+  }
   return [
-    ['info', rotTotal, M2_KPI(area),
-      plural(d.length, 'ambiente', 'ambientes') + ' em ' + plural(unis, 'unidade', 'unidades')],
+    cabeca,
     ['good','Executado (m²)', M2_KPI(areaDe(exec)) + '<u>' + pc(areaDe(exec), area) + '</u>',
-      plural(exec.length, 'ambiente', 'ambientes') + ' com status EXECUTADO'],
+      plural(exec.length, 'ambiente', 'ambientes')],
     ['warn','Em execução (m²)', M2_KPI(areaDe(prog)) + '<u>' + pc(areaDe(prog), area) + '</u>',
-      plural(prog.length, 'ambiente', 'ambientes') + ' com serviço em andamento'],
+      plural(prog.length, 'ambiente', 'ambientes')],
     ['crit','A planejar (m²)', M2_KPI(areaDe(fora)) + '<u>' + pc(areaDe(fora), area) + '</u>',
-      fora.length ? plural(fora.length, 'ambiente', 'ambientes') + ' a planejar ou sem intervenção'
-                  : 'tudo já executado ou em execução']
+      fora.length ? plural(fora.length, 'ambiente', 'ambientes') + ' · inclui sem intervenção'
+                  : 'nada pendente de planejamento']
   ].map(cartao).join('');
 }
 function graficosAtividades(d, ids, termo){
@@ -2434,9 +2559,7 @@ function graficosAtividades(d, ids, termo){
   const somaFora = porUni.reduce((a,o) => a + o.fora, 0);
   const somaTudo = somaProg + somaExec + somaFora;
   $(ids.sub).textContent = porArea.length
-    ? 'Cada barra é a área levantada da unidade, repartida pelo status · ' +
-      M2(somaTudo) + ' m² de ' + termo + ' no total: ' + M2(somaProg) + ' em execução, ' +
-      M2(somaExec) + ' executados e ' + M2(somaFora) + ' a planejar'
+    ? 'Área de ' + termo + ' de cada unidade, repartida pelo status · ' + M2(somaTudo) + ' m² no total'
     : 'Nada no recorte atual';
   barrasEmpilhadas($(ids.graf), porArea, SEG_ATIV,
     {alvo: Math.max(170, Math.min(330, porArea.length*38 + 24)), altMax:28,
@@ -2464,27 +2587,23 @@ function abaGeral(d){
 
   /* 1. risco da área × estado do forro — é aqui que se decide a ordem da obra */
   const ordemRisco = RISCOS.map(x => x.nome).concat([SEM_RISCO]).filter(k => d.some(r => r.risco === k));
-  const segEstado = ESTADOS.map(e => ({k:e.nome, nome:'Forro ' + e.nome.toLowerCase(), cor:e.cor, txt:e.txt}))
-    .concat([{k:SEM_ESTADO, nome:SEM_ESTADO, cor:'var(--c-planejar)', txt:'var(--sobre-cinza)'}]);
+  const segEstado = ESTADOS.map(e => ({k:e.nome, nome:'Forro ' + e.nome.toLowerCase(), cor:e.cor}))
+    .concat([{k:SEM_ESTADO, nome:SEM_ESTADO, cor:'var(--c-planejar)'}]);
   const linhaRisco = (ri, valor) => {
     const daFaixa = d.filter(r => r.risco === ri);
     const o = {rot:ri, total: valor(daFaixa)};
     segEstado.forEach(g => o[g.k] = valor(daFaixa.filter(r => r.estado === g.k)));
     return o;
   };
-  const vig = d.filter(r => r.vigilancia);
-  const precisam = ruim.length + d.filter(r => r.estado === 'REGULAR').length;
-  $('#sub-matriz').textContent = total
-    ? fmt(precisam) + ' de ' + fmt(total) + ' ambientes precisam de intervenção (forro ruim ou regular)' +
-      (foco.length || vig.length
-        ? ' · em área crítica: ' + fmt(foco.length) + ' com forro ruim (' + areaTxt(areaDe(foco)) +
-          ') e ' + fmt(vig.length) + ' com forro regular (' + areaTxt(areaDe(vig)) + ')'
-        : ' · nenhum deles em área crítica')
-    : 'Nada no recorte atual';
+  $('#sub-matriz').textContent = !total ? 'Nada no recorte atual'
+    : foco.length ? 'Fila da frente: ' + plural(foco.length, 'ambiente', 'ambientes') +
+        ' com forro ruim em área crítica · ' + areaTxt(areaDe(foco))
+    : 'Nenhum ambiente com forro ruim em área crítica neste recorte';
   const usados = segEstado.filter(g => d.some(r => r.estado === g.k));
   /* as duas faixas que a vigilância sanitária olha primeiro ficam contornadas na matriz */
   const realce = new Set(['CRÍTICA|RUIM', 'CRÍTICA|REGULAR']);
-  const opcMatriz = {alvo: Math.max(160, Math.min(300, ordemRisco.length*44 + 24)), altMax:30, realce};
+  const opcMatriz = {alvo: Math.max(160, Math.min(300, ordemRisco.length*44 + 24)), altMax:30, realce,
+                     dicaRot: DICA_RISCO};
   barrasEmpilhadas($('#c-matriz-n'), ordemRisco.map(ri => linhaRisco(ri, l => l.length)), usados,
     Object.assign({}, opcMatriz, {aria:'ambientes por risco da área e estado do forro'}));
   barrasEmpilhadas($('#c-matriz-a'), ordemRisco.map(ri => linhaRisco(ri, areaDe)), usados,
@@ -2492,12 +2611,10 @@ function abaGeral(d){
       aria:'área por risco da área e estado do forro'}));
   $('#leg-matriz').innerHTML = usados.map(g =>
     '<span class="it"><i class="sw" style="background:' + g.cor + '"></i>' + esc(g.nome) + '</span>').join('') +
-    '<span class="it"><i class="sw sw-alerta"></i>Faixa de atenção da vigilância</span>' +
-    '<span class="it prosa">Faixas de risco da RDC 50/2002: <b>crítica</b> (procedimento invasivo ou ' +
-    'paciente imunodeprimido), <b>semicrítica</b> (paciente sem doença infecciosa) e <b>não crítica</b> ' +
-    '(sem ocupação por paciente). O contorno marca os dois segmentos da faixa crítica: forro <b>ruim</b> ' +
-    'é troca imediata e forro <b>regular</b> entra em monitoramento preventivo, porque superfície ' +
-    'degradada em área crítica é o que se cobra numa inspeção sanitária.</span>';
+    '<span class="it" title="Forro ruim ou regular em área crítica — o que a vigilância sanitária ' +
+    'olha primeiro"><svg class="sw-alerta" width="17" height="13" aria-hidden="true">' +
+    '<rect x="1.5" y="1.5" width="14" height="10" rx="2" fill="none" stroke="var(--navy)" ' +
+    'stroke-width="2" stroke-dasharray="4 3"></rect></svg>Atenção da vigilância</span>';
 
   /* 2. status */
   const segSt = STATUS_LISTA.map(x => ({nome:x.nome, cor:x.cor, v:d.filter(r => r.status === x.nome).length}))
@@ -2506,25 +2623,23 @@ function abaGeral(d){
   const pend = d.filter(r => !r.executado).length;
   const areaProg = areaDe(d.filter(programado)), areaFora = areaDe(d.filter(foraDaConta));
   $('#sub-status').textContent = total
-    ? 'Composição dos ' + fmt(total) + ' ambientes do recorte · ' +
-      plural(pend, 'ainda não executado', 'ainda não executados') + ', ' + M2(areaProg) + ' m² em execução' +
-      (areaFora ? ' e ' + M2(areaFora) + ' m² a planejar ou sem intervenção' : '')
+    ? fmt(total) + ' ambientes do recorte · ' + plural(pend, 'ainda não executado', 'ainda não executados')
     : 'Nada no recorte atual';
   barra100($('#c-status'), segSt, total);
   /* faixa estreita não comporta rótulo dentro da barra: sem o percentual na legenda o
      leitor soma só o que enxerga e a conta não fecha em 100% */
   $('#leg-status').innerHTML = segSt.map(g =>
     '<span class="it"><i class="sw" style="background:' + g.cor + '"></i><span>' + esc(g.nome) +
-    '</span><b>' + fmt(g.v) + '</b><span class="pc">' + pc(g.v, total) + '</span></span>').join('') +
-    '<span class="it prosa">Os quatro percentuais somam 100% dos ' + fmt(total) +
-    ' ambientes do recorte. Faixas muito estreitas não cabem rótulo dentro da barra — o valor delas está aqui.</span>';
+    '</span><b>' + fmt(g.v) + '</b><span class="pc">' + pc(g.v, total) + '</span></span>').join('');
 }
 
 /* ------------------------------------------------------------- unidades */
 const COL_UNI = [
   ['unidade','Unidade de saúde',''], ['t','Ambientes','num'], ['area','Área (m²)','num'],
   ['ruim','Ruim','num'], ['reg','Regular','num'], ['bom','Bom','num'],
-  ['crit','Área crítica','num'], ['foco','Ruim + crítica','num'], ['exec','Executado','num'],
+  ['crit','Área crítica','num','Ambientes em área de risco crítico pela RDC 50/2002'],
+  ['foco','Ruim + crítica','num','Forro ruim em área crítica — a fila da frente'],
+  ['exec','Executado','num'],
   ['taxa','Composição','']
 ];
 let ordemUni = {col:'foco', dir:-1};
@@ -2571,8 +2686,7 @@ function abaUnidades(d){
       '<td class="num">' + fmt(soma.bom) + '</td><td class="num">' + fmt(soma.crit) + '</td>' +
       '<td class="num">' + fmt(soma.foco) + '</td><td class="num">' + fmt(soma.exec) + '</td>' +
       '<td>' + barraComp(soma) + '</td></tr>' : '');
-  $('#leg-uni').innerHTML = legendaEstado() +
-    '<span class="it prosa"><b>Ruim + crítica</b>: forro ruim em área de risco crítico</span>';
+  $('#leg-uni').innerHTML = legendaEstado();
 }
 
 /* ------------------------------------------------------------- pavimentos */
@@ -2634,11 +2748,9 @@ function abaPavimentos(d){
   const chavesAla = Object.keys(totAla).filter(k => k !== SEM_ALA)
     .sort((a,b) => totAla[b].t - totAla[a].t || a.localeCompare(b,'pt-BR'));
   const temAla = chavesAla.length > 0;
-  $('#sub-pav').textContent = PAV_UNI + ' · ' + nomeCurto(nomeUnidade(PAV_UNI)) + ' — ' +
-    plural(daUni.length, 'ambiente', 'ambientes') + ' em ' +
-    plural(linhas.length, 'pavimento', 'pavimentos') +
-    (temAla ? ' e ' + plural(chavesAla.length, 'bloco', 'blocos') : '') +
-    (nRuim ? ' · ' + fmt(nRuim) + ' com forro ruim' : '') + ' · clique num pavimento para ver os ambientes';
+  $('#sub-pav').textContent = nomeCurto(nomeUnidade(PAV_UNI)) + ' · ' +
+    plural(daUni.length, 'ambiente', 'ambientes') +
+    (nRuim ? ' · ' + fmt(nRuim) + ' com forro ruim' : '') + ' · clique num pavimento';
 
   const ordemPredio = linhas.slice().sort((a,b) =>
     nvl(a.pav) - nvl(b.pav) || a.pav.localeCompare(b.pav,'pt-BR'));
@@ -2664,8 +2776,7 @@ function abaPavimentos(d){
           aria:'ambientes por bloco ou ala'});
   }
   $('#pav-leg').innerHTML = '<span class="it"><i class="sw" style="background:var(--c-prazo)"></i>Ambientes</span>' +
-    '<span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Com forro ruim</span>' +
-    '<span class="it prosa">Na ordem do prédio, do subsolo para a cobertura</span>';
+    '<span class="it"><i class="sw" style="background:var(--c-atraso)"></i>Com forro ruim</span>';
 
   document.querySelector('#tab-pav thead tr').innerHTML = cabecalho(COL_PAV, ordemPav);
   const cl = (v, cor) => '<td class="num' + (v ? '' : ' zero') + '"' +
@@ -3023,10 +3134,24 @@ $$('.abas').forEach(lista => lista.addEventListener('keydown', e => {
 }));
 let deb;
 liga('#f-bus','input', e => { clearTimeout(deb); deb = setTimeout(() => { F.bus = e.target.value; desenhar(); }, 200); });
-liga('#b-limpar','click', () => {
+function limparTudo(){
   MULTI.forEach(m => { F[m.campo] = []; pintarLista(m); rotuloMulti(m); });
   F.bus = ''; $('#f-bus').value = '';
   abrirMulti(null, false); desenhar();
+}
+liga('#b-limpar','click', limparTudo);
+liga('#pilulas-recorte','click', e => {
+  if(e.target.closest('[data-tudo]')) return limparTudo();
+  const b = e.target.closest('.pilula');
+  if(!b) return;
+  const campo = b.dataset.campo;
+  if(campo === 'bus'){ F.bus = ''; $('#f-bus').value = ''; }
+  else{
+    F[campo] = F[campo].filter(v => v !== b.dataset.v);
+    const m = porCampo(campo);
+    if(m && m.lista){ pintarLista(m); rotuloMulti(m); }
+  }
+  desenhar();
 });
 document.addEventListener('click', e => {          // fecha o popup ao clicar fora
   // o alvo pode ter sido substituído pelo redesenho da própria lista; nesse caso não é "fora"
